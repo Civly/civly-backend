@@ -102,7 +102,7 @@ interface Skill {
 }
 // RUD Profile
 async function getProfile(supabaseClient: SupabaseClient, id: string) {
-  const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id)
+  const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single()
   if (error) throw error
 
   return new Response(JSON.stringify({ profile }), {
