@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
         case id && method === 'GET':
           return getProfile(supabaseClient, id as string)
         case id && method === 'PUT':
-          if(profile === null)return debug(req);
+          if(profile === null)return;
           return updateProfile(supabaseClient, id as string, profile)
         case id && method === 'DELETE':
           return deleteProfile(supabaseClient, id as string)
