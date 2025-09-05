@@ -174,6 +174,14 @@ async function updateCV(supabaseClient: SupabaseClient, id: string, cv: CV) {
   })
 }
 
+async function debug(data) {
+  return new Response(JSON.stringify({ data }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200,
+  })
+}
+
+//util
 async function createCV(supabaseClient: SupabaseClient, cv: CV) {
   const { error } = await supabaseClient.from('cv').insert(cv)
   if (error) throw error
@@ -226,7 +234,7 @@ Deno.serve(async (req) => {
         case id && method === 'GET':
           return getProfile(supabaseClient, id as string)
         case id && method === 'PUT':
-          if(profile === null)return;
+          if(profile === null)return debug(req);
           return updateProfile(supabaseClient, id as string, profile)
         case id && method === 'DELETE':
           return deleteProfile(supabaseClient, id as string)
