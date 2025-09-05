@@ -6,7 +6,7 @@ import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2.49.8'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Content-Type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
 
@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
         case id && method === 'GET':
           return getProfile(supabaseClient, id as string)
         case id && method === 'PUT':
-          if(!profile)return;
+          if(profile === null)return;
           return updateProfile(supabaseClient, id as string, profile)
         case id && method === 'DELETE':
           return deleteProfile(supabaseClient, id as string)
@@ -245,12 +245,12 @@ Deno.serve(async (req) => {
         case id && method === 'GET':
           return getCV(supabaseClient, id as string)
         case id && method === 'PUT':
-          if(!cv)return;
+          if(cv === null)return;
           return updateCV(supabaseClient, id as string, cv)
         case id && method === 'DELETE':
           return deleteCV(supabaseClient, id as string)
         case method === 'POST':
-          if(!cv)return;
+          if(cv === null)return;
           return createCV(supabaseClient, cv)
         case method === 'GET':
           return getAllCVs(supabaseClient)
