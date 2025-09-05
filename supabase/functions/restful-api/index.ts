@@ -10,32 +10,109 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
 
-interface Instrument {
-  name: string
+interface Profile {
+  id: string;
+  name?: string;
+  surname?: string;
+  birthday?: Date;
+  email?: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  summary?: string;
+  updated_at?: string;
+  avatar_url?: string;
 }
 
-async function getInstrument(supabaseClient: SupabaseClient, id: string) {
-  const { data: instrument, error } = await supabaseClient.from('instruments').select('*').eq('id', id)
+interface CV {
+  id: string;
+  last_modified: Date;
+  user_id: string;
+  visibility: 'draft' | 'private' | 'public';
+  password: string;
+  layout_configs: LayoutConfigs
+  personalInformation: PersonalInformation
+  expericence?: ExperienceItem[]
+  education?: EducationItem[]
+  skillGroups?: SkillGroup[]
+}
+
+interface PersonalInformation {
+  id: string;
+  cv_id: string;
+  name?: string;
+  surname?: string;
+  profile_url?: string;
+  birthdate?: Date;
+  email?: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  xing?: string;
+  website?: string;
+  professionalTitle?: string;
+  summary?: string;
+}
+
+interface LayoutConfigs {
+  id: string;
+  cv_id: string;
+  template_id: number;
+  color_id: number;
+  font_size: number;
+}
+
+interface ExperienceItem {
+  id: string;
+  cv_id: string;
+  role: string;
+  company?: string;
+  startDate?: Date;
+  currentlyWorkingHere: boolean;
+  endDate?: Date;
+  location?: string;
+  description?: string;
+}
+
+interface EducationItem {
+  id: string;
+  cv_id: string;
+  degree?: string;
+  institution?: string;
+  startDate?: Date;
+  currentlyStudyingHere?: boolean;
+  endDate?: Date;
+  location?: string;
+  description?: string;    
+}
+
+interface SkillGroup {
+  id: string;
+  cv_id: string;
+  name?: string;           
+  order?: number;  
+  skills?: Skill[];         
+}
+
+interface Skill {
+  id: string;
+  skillgroup_id: string;
+  order?: number;
+  name?: string; 
+}
+// RUD Profile
+async function getProfile(supabaseClient: SupabaseClient, id: string) {
+  const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id)
   if (error) throw error
 
-  return new Response(JSON.stringify({ instrument }), {
+  return new Response(JSON.stringify({ profile }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status: 200,
   })
 }
 
-async function getAllInstruments(supabaseClient: SupabaseClient) {
-  const { data: instruments, error } = await supabaseClient.from('instruments').select('*')
-  if (error) throw error
-
-  return new Response(JSON.stringify({ instruments }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
-}
-
-async function deleteInstrument(supabaseClient: SupabaseClient, id: string) {
-  const { error } = await supabaseClient.from('instruments').delete().eq('id', id)
+async function deleteProfile(supabaseClient: SupabaseClient, id: string) {
+  const { error } = await supabaseClient.from('profiles').delete().eq('id', id)
   if (error) throw error
 
   return new Response(JSON.stringify({}), {
@@ -44,8 +121,21 @@ async function deleteInstrument(supabaseClient: SupabaseClient, id: string) {
   })
 }
 
-async function updateInstrument(supabaseClient: SupabaseClient, id: string, instrument: Instrument) {
-  const { error } = await supabaseClient.from('instruments').update(instrument).eq('id', id)
+async function updateProfile(supabaseClient: SupabaseClient, id: string, profile: Profile) {
+
+  const { error } = await supabaseClient.from('profiles').update(profile).eq('id', id)
+  if (error) throw error
+
+  return new Response(JSON.stringify({ profile }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200,
+  })
+}
+
+// CRUD CV
+
+async function getCV(supabaseClient: SupabaseClient, id: string) {
+  const { data: instrument, error } = await supabaseClient.from('cv').select('*').eq('id', id)
   if (error) throw error
 
   return new Response(JSON.stringify({ instrument }), {
@@ -54,11 +144,41 @@ async function updateInstrument(supabaseClient: SupabaseClient, id: string, inst
   })
 }
 
-async function createInstrument(supabaseClient: SupabaseClient, instrument: Instrument) {
-  const { error } = await supabaseClient.from('instruments').insert(instrument)
+async function getAllCVs(supabaseClient: SupabaseClient) {
+  const { data: instruments, error } = await supabaseClient.from('cv').select('*')
   if (error) throw error
 
-  return new Response(JSON.stringify({ instrument }), {
+  return new Response(JSON.stringify({ instruments }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200,
+  })
+}
+
+async function deleteCV(supabaseClient: SupabaseClient, id: string) {
+  const { error } = await supabaseClient.from('cv').delete().eq('id', id)
+  if (error) throw error
+
+  return new Response(JSON.stringify({}), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200,
+  })
+}
+
+async function updateCV(supabaseClient: SupabaseClient, id: string, cv: CV) {
+  const { error } = await supabaseClient.from('cv').update(cv).eq('id', id)
+  if (error) throw error
+
+  return new Response(JSON.stringify({ cv }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200,
+  })
+}
+
+async function createCV(supabaseClient: SupabaseClient, cv: CV) {
+  const { error } = await supabaseClient.from('cv').insert(cv)
+  if (error) throw error
+
+  return new Response(JSON.stringify({ cv }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status: 200,
   })
@@ -89,31 +209,56 @@ Deno.serve(async (req) => {
     )
 
     // For more details on URLPattern, check https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
-    const instrumentPattern = new URLPattern({ pathname: '/restful-api/:id' })
+    const instrumentPattern = new URLPattern({ pathname: '/restful-api/:action/:id' })
     const matchingPath = instrumentPattern.exec(url)
     const id = matchingPath ? matchingPath.pathname.groups.id : null
+    const action = matchingPath ? matchingPath.pathname.groups.action : null
 
-    let instrument = null
-    if (method === 'POST' || method === 'PUT') {
-      const body = await req.json()
-      instrument = body.instrument
-    }
+    if(action === 'profile'){
+      let profile = null
+      if (method === 'POST' || method === 'PUT') {
+        const body = await req.json()
+        profile = body.profile
+      }
 
-    // call relevant method based on method and id
-    switch (true) {
-      case id && method === 'GET':
-        return getInstrument(supabaseClient, id as string)
-      case id && method === 'PUT':
-        return updateInstrument(supabaseClient, id as string, instrument)
-      case id && method === 'DELETE':
-        return deleteInstrument(supabaseClient, id as string)
-      case method === 'POST':
-        return createInstrument(supabaseClient, instrument)
-      case method === 'GET':
-        return getAllInstruments(supabaseClient)
-      default:
-        return getAllInstruments(supabaseClient)
+      // call relevant method based on method and id
+      switch (true) {
+        case id && method === 'GET':
+          return getProfile(supabaseClient, id as string)
+        case id && method === 'PUT':
+          if(!profile)return;
+          return updateProfile(supabaseClient, id as string, profile)
+        case id && method === 'DELETE':
+          return deleteProfile(supabaseClient, id as string)
+        default:
+          return;
+      }
+    } else if (action === 'cv') {
+      let cv = null
+      if (method === 'POST' || method === 'PUT') {
+        const body = await req.json()
+        cv = body.cv
+      }
+
+      // call relevant method based on method and id
+      switch (true) {
+        case id && method === 'GET':
+          return getCV(supabaseClient, id as string)
+        case id && method === 'PUT':
+          if(!cv)return;
+          return updateCV(supabaseClient, id as string, cv)
+        case id && method === 'DELETE':
+          return deleteCV(supabaseClient, id as string)
+        case method === 'POST':
+          if(!cv)return;
+          return createCV(supabaseClient, cv)
+        case method === 'GET':
+          return getAllCVs(supabaseClient)
+        default:
+          return getAllCVs(supabaseClient)
+      }
     }
+    
   } catch (error) {
     console.error(error)
 
