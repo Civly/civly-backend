@@ -3,7 +3,8 @@
 // This enables autocomplete, go to definition, etc.
 
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2.49.8';
-//import express from 'npm:express@4.18.2';
+import {encode} from 'npm:html-entities@latest';
+import * as z from "npm:zod@latest";
 import type { Profile, CV, PersonalInformation, LayoutConfigs, ExperienceItem, EducationItem, SkillGroup, Skill } from './types';
 
 const corsHeaders = {
@@ -79,7 +80,21 @@ async function deleteCV(supabaseClient: SupabaseClient, id: string) {
 
 async function updateCV(supabaseClient: SupabaseClient, id: string, cv: CV) {
   const userId = await getUserId(supabaseClient);
-  const { error } = await supabaseClient.from('cv').update({name: cv.name, updated_at: new Date().toISOString()}).eq('id', id)
+  const schema = z.object({
+    name: z.string()
+  }).transform(({name}) => ({
+    name: encode(name)
+  }))
+  let parsed;
+  try {
+    parsed = schema.parse(cv);
+  } catch (error) {
+    if(error instanceof z.ZodError){
+      throw error.issues; 
+    }
+  }
+
+  const { error } = await supabaseClient.from('cv').update({name: parsed.name, updated_at: new Date().toISOString()}).eq('id', id)
   if (error) throw error
 
   return new Response(JSON.stringify({ cv }), {
@@ -100,7 +115,20 @@ async function createCV(supabaseClient: SupabaseClient, cv: CV) {
   const userId = await getUserId(supabaseClient);
   let insertData: CV = {user_id: userId};
   if(cv.name !== null){
-    insertData = {user_id: userId, name: cv.name}
+    const schema = z.object({
+      name: z.string()
+    }).transform(({name}) => ({
+      name: encode(name)
+    }))
+    let parsed;
+    try {
+      parsed = schema.parse(cv);
+    } catch (error) {
+      if(error instanceof z.ZodError){
+        throw error.issues; 
+      }
+    }
+    insertData = {user_id: userId, name: parsed.name}
   }
   const { data, error } = await supabaseClient.from('cv').insert(insertData).select();
   if (error) throw error
