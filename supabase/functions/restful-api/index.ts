@@ -2,7 +2,9 @@
 // https://deno.land/manual/getting_started/setup_your_environment
 // This enables autocomplete, go to definition, etc.
 
-import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2.49.8'
+import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2.49.8';
+//import express from 'npm:express@4.18.2';
+import type { Profile, CV, PersonalInformation, LayoutConfigs, ExperienceItem, EducationItem, SkillGroup, Skill } from './types';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,96 +12,7 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
 
-interface Profile {
-  id: string;
-  name?: string;
-  surname?: string;
-  birthday?: Date;
-  email?: string;
-  phone?: string;
-  location?: string;
-  website?: string;
-  summary?: string;
-  updated_at?: string;
-  avatar_url?: string;
-}
 
-interface CV {
-  id: string;
-  last_modified: Date;
-  user_id: string;
-  visibility: 'draft' | 'private' | 'public';
-  password: string;
-  layout_configs: LayoutConfigs
-  personalInformation: PersonalInformation
-  expericence?: ExperienceItem[]
-  education?: EducationItem[]
-  skillGroups?: SkillGroup[]
-}
-
-interface PersonalInformation {
-  id: string;
-  cv_id: string;
-  name?: string;
-  surname?: string;
-  profile_url?: string;
-  birthdate?: Date;
-  email?: string;
-  phone?: string;
-  location?: string;
-  linkedin?: string;
-  xing?: string;
-  website?: string;
-  professionalTitle?: string;
-  summary?: string;
-}
-
-interface LayoutConfigs {
-  id: string;
-  cv_id: string;
-  template_id: number;
-  color_id: number;
-  font_size: number;
-}
-
-interface ExperienceItem {
-  id: string;
-  cv_id: string;
-  role: string;
-  company?: string;
-  startDate?: Date;
-  currentlyWorkingHere: boolean;
-  endDate?: Date;
-  location?: string;
-  description?: string;
-}
-
-interface EducationItem {
-  id: string;
-  cv_id: string;
-  degree?: string;
-  institution?: string;
-  startDate?: Date;
-  currentlyStudyingHere?: boolean;
-  endDate?: Date;
-  location?: string;
-  description?: string;    
-}
-
-interface SkillGroup {
-  id: string;
-  cv_id: string;
-  name?: string;           
-  order?: number;  
-  skills?: Skill[];         
-}
-
-interface Skill {
-  id: string;
-  skillgroup_id: string;
-  order?: number;
-  name?: string; 
-}
 // RUD Profile
 async function getProfile(supabaseClient: SupabaseClient, id: string) {
   const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single()
@@ -135,20 +48,20 @@ async function updateProfile(supabaseClient: SupabaseClient, id: string, profile
 // CRUD CV
 
 async function getCV(supabaseClient: SupabaseClient, id: string) {
-  const { data: instrument, error } = await supabaseClient.from('cv').select('*').eq('id', id)
+  const { data, error } = await supabaseClient.from('cv').select('*').eq('id', id)
   if (error) throw error
 
-  return new Response(JSON.stringify({ instrument }), {
+  return new Response(JSON.stringify({ data }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status: 200,
   })
 }
 
 async function getAllCVs(supabaseClient: SupabaseClient) {
-  const { data: instruments, error } = await supabaseClient.from('cv').select('*')
+  const { data, error } = await supabaseClient.from('cv').select('*')
   if (error) throw error
 
-  return new Response(JSON.stringify({ instruments }), {
+  return new Response(JSON.stringify({ data }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status: 200,
   })
@@ -165,7 +78,8 @@ async function deleteCV(supabaseClient: SupabaseClient, id: string) {
 }
 
 async function updateCV(supabaseClient: SupabaseClient, id: string, cv: CV) {
-  const { error } = await supabaseClient.from('cv').update(cv).eq('id', id)
+  const userId = await getUserId(supabaseClient);
+  const { error } = await supabaseClient.from('cv').update({name: cv.name, updated_at: new Date().toISOString()}).eq('id', id)
   if (error) throw error
 
   return new Response(JSON.stringify({ cv }), {
@@ -183,13 +97,25 @@ async function debug(data) {
 
 //util
 async function createCV(supabaseClient: SupabaseClient, cv: CV) {
-  const { error } = await supabaseClient.from('cv').insert(cv)
+  const userId = await getUserId(supabaseClient);
+  let insertData: CV = {user_id: userId};
+  if(cv.name !== null){
+    insertData = {user_id: userId, name: cv.name}
+  }
+  const { data, error } = await supabaseClient.from('cv').insert(insertData).select();
   if (error) throw error
 
-  return new Response(JSON.stringify({ cv }), {
+  return new Response(JSON.stringify({ id: data.id }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status: 200,
   })
+}
+
+async function getUserId(supabaseClient: SupabaseClient) {
+  const { data, error } = await supabaseClient.auth.getUser();
+  if (error) throw error
+
+  return data.user.id;
 }
 
 Deno.serve(async (req) => {
