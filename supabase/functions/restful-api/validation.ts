@@ -1,4 +1,4 @@
-import type { CV, LayoutConfigs, PersonalInformation, ExperienceItem, EducationItem, SkillGroup, Skill } from './types.ts';
+import type { CV, LayoutConfigs, PersonalInformation, ExperienceItem, EducationItem, SkillGroup, Skill } from './types.d.ts';
 import * as z from "npm:zod@latest";
 import {encode} from 'npm:html-entities@latest';
 
