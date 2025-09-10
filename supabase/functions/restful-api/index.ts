@@ -4,8 +4,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import * as z from "npm:zod@latest";
 import {encode} from 'npm:html-entities@latest';
-import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validateSkill, validateSkillGroup } from './validation';
-import { EducationItem, ExperienceItem, Skill, SkillGroup } from './types';
+import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validateSkill, validateSkillGroup } from './validation.ts';
+import { EducationItem, ExperienceItem, Skill, SkillGroup } from './types.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Content-Type',
