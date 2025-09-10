@@ -1,232 +1,386 @@
 // Follow this setup guide to integrate the Deno language server with your editor:
 // https://deno.land/manual/getting_started/setup_your_environment
 // This enables autocomplete, go to definition, etc.
-
-import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2.49.8';
-import {encode} from 'npm:html-entities@latest';
+import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import * as z from "npm:zod@latest";
-import type { Profile, CV, PersonalInformation, LayoutConfigs, ExperienceItem, EducationItem, SkillGroup, Skill } from './types';
-
+import {encode} from 'npm:html-entities@latest';
+import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validateSkill, validateSkillGroup } from './validation';
+import { EducationItem, ExperienceItem, Skill, SkillGroup } from './types';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Content-Type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
-}
-
-
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE'
+};
 // RUD Profile
-async function getProfile(supabaseClient: SupabaseClient, id: string) {
-  const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single()
-  if (error) throw error
-
-  return new Response(JSON.stringify({ profile }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+async function getProfile(supabaseClient, id) {
+  const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single();
+  if (error) throw error;
+  return new Response(JSON.stringify({
+    profile
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
-async function deleteProfile(supabaseClient: SupabaseClient, id: string) {
-  const { error } = await supabaseClient.from('profiles').delete().eq('id', id)
-  if (error) throw error
-
+async function deleteProfile(supabaseClient, id) {
+  const { error } = await supabaseClient.from('profiles').delete().eq('id', id);
+  if (error) throw error;
   return new Response(JSON.stringify({}), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
-async function updateProfile(supabaseClient: SupabaseClient, id: string, profile: Profile) {
-
-  const { error } = await supabaseClient.from('profiles').update(profile).eq('id', id)
-  if (error) throw error
-
-  return new Response(JSON.stringify({ profile }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+async function updateProfile(supabaseClient, id, profile) {
+  const { error } = await supabaseClient.from('profiles').update(profile).eq('id', id);
+  if (error) throw error;
+  return new Response(JSON.stringify({
+    profile
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
 // CRUD CV
+async function getCV(supabaseClient, id) {
+  const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('name, visibility').eq('id', id);
+  if (cvbaseDataError) throw cvbaseDataError;
+  
+  const { data: layout_configs, layout_configsError } = await supabaseClient.from('layoutConfigs').select('*').eq('cv_id', id).single();
+  if (layout_configsError) throw layout_configsError;
+  const { data: personalInformation, personalInformationError } = await supabaseClient.from('personalInformation').select('*').eq('cv_id', id).single();
+  if (personalInformationError) throw personalInformationError;
+  const { data: experience, experienceError } = await supabaseClient.from('Experience').select('*').eq('cv_id', id);
+  if (experienceError) throw experienceError;
+  const { data: education, educationError } = await supabaseClient.from('Education').select('*').eq('cv_id', id);
+  if (educationError) throw educationError;
 
-async function getCV(supabaseClient: SupabaseClient, id: string) {
-  const { data, error } = await supabaseClient.from('cv').select('*').eq('id', id)
-  if (error) throw error
+  const { data: skillGroups, skillGroupsError } = await supabaseClient.from('SkillGroup').select('*').eq('cv_id', id);
+  if (skillGroupsError) throw skillGroupsError;
+  for (const sg of skillGroups) {
+    const { data: skill, skillError } = await supabaseClient.from('Skill').select('*').eq('skillgroup_id', sg.id);
+    if (skillError) throw skillError;
+    sg.skills = skill;
+  }
 
-  return new Response(JSON.stringify({ data }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+  return new Response(JSON.stringify({
+    ...cvbaseData,
+    layout_configs: {...layout_configs},
+    personalInformation: {...personalInformation},
+    experience: experience,
+    education: education,
+    skillGroups: skillGroups
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
-async function getAllCVs(supabaseClient: SupabaseClient) {
-  const { data, error } = await supabaseClient.from('cv').select('*')
-  if (error) throw error
-
-  return new Response(JSON.stringify({ data }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+async function getAllCVs(supabaseClient) {
+  const { data, error } = await supabaseClient.from('cv').select('*').order('created_at', {
+    ascending: false
+  });
+  if (error) {
+    console.log(error);
+    throw error;
+  }
+  return new Response(JSON.stringify({
+    data
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
-async function deleteCV(supabaseClient: SupabaseClient, id: string) {
-  const { error } = await supabaseClient.from('cv').delete().eq('id', id)
-  if (error) throw error
-
+async function deleteCV(supabaseClient, id) {
+  const { error } = await supabaseClient.from('cv').delete().eq('id', id);
+  if (error) throw error;
   return new Response(JSON.stringify({}), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
-async function updateCV(supabaseClient: SupabaseClient, id: string, cv: CV) {
+async function updateCV(supabaseClient, id, cv) {
   const userId = await getUserId(supabaseClient);
-  const schema = z.object({
-    name: z.string()
-  }).transform(({name}) => ({
-    name: encode(name)
-  }))
-  let parsed;
-  try {
-    parsed = schema.parse(cv);
-  } catch (error) {
-    if(error instanceof z.ZodError){
-      throw error.issues; 
+
+  let parsedCV = validateCV(cv);
+  let parsedLayout_configs;
+  let parsedPersonalInformation;
+  let parsedExperiences: ExperienceItem[] = [];
+  let parsedEducation: EducationItem[] = [];
+  let parsedskillGroups: SkillGroup[] = [];
+
+  if(cv.layout_configs){
+    parsedLayout_configs = validateLayoutConfigs(cv.layout_configs);
+  }
+  if(cv.personalInformation){
+    parsedPersonalInformation = validateLayoutConfigs(cv.personalInformation);
+  }
+  if(Array.isArray(cv.experience)){
+    for (const ex of cv.experience) {
+      parsedExperiences.push(validateExperienceItem(ex));
+    }
+  }
+  if(Array.isArray(cv.education)){
+    for (const ed of cv.education) {
+      parsedEducation.push(validateEducationItem(ed));
+    }
+  }
+  if(Array.isArray(cv.skillGroups)){
+    for (const sg of cv.skillGroups) {
+      let validatedSG = validateSkillGroup(sg);
+      let parsedSkillsTemp: Skill[] = [];
+      if(Array.isArray(sg.skills)){    
+        for (const skill of sg.skills) {
+          parsedSkillsTemp.push(validateSkill(skill));
+        }
+      }
+      validatedSG.skills = parsedSkillsTemp;
+      parsedskillGroups.push(validatedSG);
     }
   }
 
-  const { error } = await supabaseClient.from('cv').update({name: parsed.name, updated_at: new Date().toISOString()}).eq('id', id)
-  if (error) throw error
+  //Update 
+  const { error: cvupdateError } = await supabaseClient.from('cv').update({
+    ...parsedCV,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (cvupdateError) throw cvupdateError;
+  const { error: layoutconfigsError } = await supabaseClient.from('layoutConfigs').update({
+    ...parsedLayout_configs,
+  }).eq('cv_id', id).eq('user_id', userId);
+  if (layoutconfigsError) throw layoutconfigsError;
+  const { error: personalInformationError } = await supabaseClient.from('personalInformation').update({
+    ...parsedPersonalInformation,
+  }).eq('cv_id', id).eq('user_id', userId);
+  if (personalInformationError) throw personalInformationError;
 
-  return new Response(JSON.stringify({ cv }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+  //Delete first, then insert as new
+  const { error: deleteExpError } = await supabaseClient.from('ExperienceItem').delete().eq('cv_id', id).eq('user_id', userId);
+  if (deleteExpError) throw deleteExpError;
+  for (const exp of parsedExperiences) {
+    const { error: insertExpError } = await supabaseClient.from('ExperienceItem').insert(
+      {
+        cv_id: id,
+        user_id: userId,
+        ...exp,
+      });
+    if (insertExpError) throw insertExpError;
+  }
+
+  const { error: deleteEduError } = await supabaseClient.from('EducationItem').delete().eq('cv_id', id).eq('user_id', userId);
+  if (deleteEduError) throw deleteEduError;
+  for (const edu of parsedEducation) {
+    const { error: insertEduError } = await supabaseClient.from('EducationItem').insert(
+      {
+        cv_id: id,
+        user_id: userId,
+        ...edu,
+      });
+    if (insertEduError) throw insertEduError;
+  }
+
+  const { error: deleteSkillGroupError } = await supabaseClient.from('SkillGroup').delete().eq('cv_id', id).eq('user_id', userId);
+  if (deleteSkillGroupError) throw deleteSkillGroupError;
+  for (const skillgroup of parsedskillGroups) {
+    const { data: skillgroupinserted,error: insertSkillGroupError } = await supabaseClient.from('SkillGroup').insert(
+      {
+        cv_id: id,
+        user_id: userId,
+        name: skillgroup.name,
+        order: skillgroup.order,
+      }).select();
+    if (insertSkillGroupError) throw insertSkillGroupError;
+    if(skillgroup.skills){
+      for (const skill of skillgroup.skills) {
+        const { error: insertSkillError } = await supabaseClient.from('Skill').insert(
+          {
+            skillgroup_id: skillgroupinserted.id,
+            user_id: userId,
+            name: skill.name,
+            order: skill.order,
+          });
+        if (insertSkillError) throw insertSkillError;
+      }
+    }
+  }
+
+  return new Response(JSON.stringify({
+    id,
+    ...parsedCV,
+    layout_configs: {...parsedLayout_configs},
+    personalInformation: {...parsedPersonalInformation},
+    experience: parsedExperiences,
+    education: parsedEducation,
+    skillGroups: parsedskillGroups
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
 async function debug(data) {
-  return new Response(JSON.stringify({ data }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+  return new Response(JSON.stringify({
+    data
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
 //util
-async function createCV(supabaseClient: SupabaseClient, cv: CV) {
+async function createCV(supabaseClient, cv) {
+  console.log('creating cv', cv);
   const userId = await getUserId(supabaseClient);
-  let insertData: CV = {user_id: userId};
-  if(cv.name !== null){
+  let insertData;
+  insertData = {
+    user_id: userId
+  };
+  if (cv.name !== null) {
     const schema = z.object({
       name: z.string()
-    }).transform(({name}) => ({
-      name: encode(name)
-    }))
+    }).transform(({ name })=>({
+        name: encode(name)
+      }));
     let parsed;
     try {
       parsed = schema.parse(cv);
     } catch (error) {
-      if(error instanceof z.ZodError){
-        throw error.issues; 
+      if (error instanceof z.ZodError) {
+        throw error.issues;
       }
     }
-    insertData = {user_id: userId, name: parsed.name}
+    insertData = {
+      user_id: userId,
+      name: parsed.name
+    };
   }
   const { data, error } = await supabaseClient.from('cv').insert(insertData).select();
-  if (error) throw error
-
-  return new Response(JSON.stringify({ id: data.id }), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    status: 200,
-  })
+  if (error) throw error;
+  return new Response(JSON.stringify(data), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
 }
-
-async function getUserId(supabaseClient: SupabaseClient) {
+async function getUserId(supabaseClient) {
   const { data, error } = await supabaseClient.auth.getUser();
-  if (error) throw error
-
+  if (error) throw error;
   return data.user.id;
 }
-
-Deno.serve(async (req) => {
-  const { url, method } = req
-
+Deno.serve(async (req)=>{
+  const { url, method } = req;
   // This is needed if you're planning to invoke your function from a browser.
   if (method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', {
+      headers: corsHeaders
+    });
   }
-
   try {
     // Create a Supabase client with the Auth context of the logged in user.
-    const supabaseClient = createClient(
-      // Supabase API URL - env var exported by default.
-      Deno.env.get('SUPABASE_URL') ?? '',
-      // Supabase API ANON KEY - env var exported by default.
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      // Create client with Auth context of the user that called the function.
-      // This way your row-level-security (RLS) policies are applied.
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
+    const supabaseClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+      global: {
+        headers: {
+          Authorization: req.headers.get('Authorization')
+        }
       }
-    )
-
+    });
     // For more details on URLPattern, check https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
-    const instrumentPattern = new URLPattern({ pathname: '/restful-api/:action/:id' })
-    const matchingPath = instrumentPattern.exec(url)
-    const id = matchingPath ? matchingPath.pathname.groups.id : null
-    const action = matchingPath ? matchingPath.pathname.groups.action : null
-
-    if(action === 'profile'){
-      let profile = null
+    const instrumentPattern = new URLPattern({
+      pathname: '/restful-api/:action/:id?'
+    });
+    const matchingPath = instrumentPattern.exec(url);
+    console.log("before id");
+    const id = matchingPath ? matchingPath.pathname.groups.id : null;
+    console.log("after id", id);
+    const action = matchingPath ? matchingPath.pathname.groups.action : null;
+    console.log("after action", action);
+    if (action === 'profile') {
+      let profile = null;
       if (method === 'POST' || method === 'PUT') {
-        const body = await req.json()
-        profile = body.profile
+        const body = await req.json();
+        profile = body.profile;
       }
-
       // call relevant method based on method and id
-      switch (true) {
+      switch(true){
         case id && method === 'GET':
-          return getProfile(supabaseClient, id as string)
+          return getProfile(supabaseClient, id);
         case id && method === 'PUT':
-          if(profile === null)return;
-          return updateProfile(supabaseClient, id as string, profile)
+          if (profile === null) return;
+          return updateProfile(supabaseClient, id, profile);
         case id && method === 'DELETE':
-          return deleteProfile(supabaseClient, id as string)
+          return deleteProfile(supabaseClient, id);
         default:
           return;
       }
     } else if (action === 'cv') {
-      let cv = null
+      let cv = null;
       if (method === 'POST' || method === 'PUT') {
-        const body = await req.json()
-        cv = body.cv
+        const body = await req.json();
+        cv = body.cv;
       }
-
       // call relevant method based on method and id
-      switch (true) {
+      switch(true){
         case id && method === 'GET':
-          return getCV(supabaseClient, id as string)
+          return getCV(supabaseClient, id);
         case id && method === 'PUT':
-          if(cv === null)return;
-          return updateCV(supabaseClient, id as string, cv)
+          if (cv === null) return;
+          return updateCV(supabaseClient, id, cv);
         case id && method === 'DELETE':
-          return deleteCV(supabaseClient, id as string)
+          return deleteCV(supabaseClient, id);
         case method === 'POST':
-          if(cv === null)return;
-          return createCV(supabaseClient, cv)
+          if (cv === null) return;
+          return createCV(supabaseClient, cv);
         case method === 'GET':
-          return getAllCVs(supabaseClient)
+          return getAllCVs(supabaseClient);
         default:
-          return getAllCVs(supabaseClient)
+          return getAllCVs(supabaseClient);
       }
+    } else {
+      console.log('no action provided');
     }
-    
   } catch (error) {
-    console.error(error)
-
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    })
+    console.error(error);
+    if(error instanceof z.ZodError){
+      return new Response(JSON.stringify({
+        error: error.issues
+      }), {
+        headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+        },
+        status: 400
+      });
+    }
+    return new Response(JSON.stringify({
+      error: error.message
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 400
+    });
   }
-})
+});
