@@ -51,8 +51,9 @@ async function updateProfile(supabaseClient, id, profile) {
 }
 // View CV for public
 async function getView(supabaseClient, id) {
-  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', id);
+  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', id).single();
   if (cvDataError) throw cvDataError;
+  console.log(cvData);
   if(cvData.visibility == 'public' && cvData.password === null){
     getCV(supabaseClient, id);
   } else if(cvData.visibility == 'public' && cvData.password !== null){
@@ -80,7 +81,7 @@ async function getView(supabaseClient, id) {
 
 async function getViewProtected(supabaseClient, viewData: CV | null) {
   if(viewData === null){ throw Error('Bad request. Please provide a password.')}
-  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', viewData?.id);
+  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', viewData?.id).single();
   if (cvDataError) throw cvDataError;
   if(cvData.password !== null && cvData.visibility == 'public' && viewData?.password == cvData.password){
     getCV(supabaseClient, viewData?.id);
