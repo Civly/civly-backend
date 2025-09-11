@@ -95,3 +95,13 @@ export interface Skill {
   name?: string; 
   order?: number;
 }
+
+export interface FailedLoginAttempt {
+  id?: string;
+  ip?: string;
+  cv_id: string;
+  failedAttempts?: number;
+  lockedUntil?: Date;
+  updatedAt?: Date;
+  createdAt?: Date;
+}

@@ -1,11 +1,13 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
 import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import * as z from "npm:zod@latest";
 import {encode} from 'npm:html-entities@latest';
 import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validateSkill, validateSkillGroup } from './validation.ts';
 import type { CV, EducationItem, ExperienceItem, Skill, SkillGroup } from './types.d.ts';
+
+//For CV-Password Brute Force Protection
+const MAX_ATTEMPTS = 3;
+const BLOCK_TIME = 5 * 60 * 1000;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Content-Type',
@@ -79,13 +81,51 @@ async function getView(supabaseClient, id) {
   }
 }
 
-async function getViewProtected(supabaseClient, viewData: CV | null) {
-  if(viewData === null){ throw Error('Bad request. Please provide a password.')}
+async function getViewProtected(supabaseClient, viewData: CV | null, request) {
+  if(viewData === null) { 
+    throw Error('Bad request. Please provide a password.')
+  }
+  const serviceRole = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const attempt = await serviceRole.from('FailedLoginAttempts').select('lockedUntil, failedAttempts').eq('ip', ip).eq('cv_id',viewData?.id).single();
+
+  if(attempt?.lockedUntil && attempt.lockedUntil > new Date()) {
+    return new Response(JSON.stringify({
+      error: 'Too many failed password attempts.'
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 429
+    });
+  }
+
   const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', viewData?.id).single();
   if (cvDataError) throw cvDataError;
   if(cvData.password !== null && cvData.visibility == 'public' && viewData?.password == cvData.password){
+    //Password was correct reset retries
+    if(attempt){
+      await serviceRole.from('FailedLoginAttempts').delete().eq('ip', ip).eq('cv_id', viewData?.id);
+    }
     return await getCV(supabaseClient, viewData?.id);
   } else {
+    if(attempt){
+      const newAttempts = attempt.failedAttempts + 1;
+      await serviceRole.from('FailedLoginAttempts').update({
+        failedAttempts: newAttempts,
+        lockedUntil: newAttempts >= MAX_ATTEMPTS ? new Date(Date.now() + BLOCK_TIME).toISOString() : null,
+        updatedAt: new Date().toISOString()
+      }).eq('ip',ip).eq('cv_id', viewData?.id);
+    } else {
+      await serviceRole.from('FailedLoginAttempts').insert({ip, cv_id: viewData?.id, failedAttempts: 1, createdAt: new Date().toISOString()})
+    }
     return new Response(JSON.stringify({
       error: 'CV is password protected'
     }), {
@@ -360,11 +400,8 @@ Deno.serve(async (req)=>{
       pathname: '/restful-api/:action/:id?'
     });
     const matchingPath = instrumentPattern.exec(url);
-    console.log("before id");
     const id = matchingPath ? matchingPath.pathname.groups.id : null;
-    console.log("after id", id);
     const action = matchingPath ? matchingPath.pathname.groups.action : null;
-    console.log("after action", action);
     if (action === 'profile') {
       let profile = null;
       if (method === 'POST' || method === 'PUT') {
@@ -417,7 +454,7 @@ Deno.serve(async (req)=>{
         case id && method === 'GET':
           return getView(supabaseClient, id);
         case method === 'POST':
-          return getViewProtected(supabaseClient, viewData);
+          return getViewProtected(supabaseClient, viewData, req);
         default:
           return;
       }
