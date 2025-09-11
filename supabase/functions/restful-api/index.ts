@@ -91,7 +91,7 @@ async function getViewProtected(supabaseClient, viewData: CV | null, request) {
       detectSessionInUrl: false,
     },
   })
-  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const ip = request.headers.get("x-forwarded-for").substring(0,request.headers.get("x-forwarded-for").indexOf(',')) || "unknown";
   const {data: attempt} = await serviceRole.from('FailedLoginAttempts').select('lockedUntil, failedAttempts').eq('ip', ip).eq('cv_id',viewData?.id).single();
 
   if(attempt?.lockedUntil && attempt.lockedUntil > new Date()) {
