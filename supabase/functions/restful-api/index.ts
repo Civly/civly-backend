@@ -94,7 +94,7 @@ async function getViewProtected(supabaseClient, viewData: CV | null, request) {
   const ip = request.headers.get("x-forwarded-for").substring(0,request.headers.get("x-forwarded-for").indexOf(',')) || "unknown";
   const {data: attempt} = await serviceRole.from('FailedLoginAttempts').select('lockedUntil, failedAttempts').eq('ip', ip).eq('cv_id',viewData?.id).single();
 
-  if(attempt?.lockedUntil && attempt.lockedUntil > new Date()) {
+  if(attempt?.lockedUntil && new Date(attempt.lockedUntil) > new Date()) {
     return new Response(JSON.stringify({
       error: 'Too many failed password attempts.'
     }), {
