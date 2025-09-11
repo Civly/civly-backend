@@ -55,7 +55,7 @@ async function getView(supabaseClient, id) {
   if (cvDataError) throw cvDataError;
   console.log(cvData);
   if(cvData.visibility == 'public' && cvData.password === null){
-    getCV(supabaseClient, id);
+    return await getCV(supabaseClient, id);
   } else if(cvData.visibility == 'public' && cvData.password !== null){
     return new Response(JSON.stringify({
       error: 'CV is password protected'
@@ -84,7 +84,7 @@ async function getViewProtected(supabaseClient, viewData: CV | null) {
   const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', viewData?.id).single();
   if (cvDataError) throw cvDataError;
   if(cvData.password !== null && cvData.visibility == 'public' && viewData?.password == cvData.password){
-    getCV(supabaseClient, viewData?.id);
+    return await getCV(supabaseClient, viewData?.id);
   } else {
     return new Response(JSON.stringify({
       error: 'CV is password protected'
