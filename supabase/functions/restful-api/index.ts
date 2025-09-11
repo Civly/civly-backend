@@ -5,7 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import * as z from "npm:zod@latest";
 import {encode} from 'npm:html-entities@latest';
 import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validateSkill, validateSkillGroup } from './validation.ts';
-import type { EducationItem, ExperienceItem, Skill, SkillGroup } from './types.d.ts';
+import type { CV, EducationItem, ExperienceItem, Skill, SkillGroup } from './types.d.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Content-Type',
@@ -49,6 +49,54 @@ async function updateProfile(supabaseClient, id, profile) {
     status: 200
   });
 }
+// View CV for public
+async function getView(supabaseClient, id) {
+  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', id);
+  if (cvDataError) throw cvDataError;
+  if(cvData.visibility == 'public' && cvData.password === null){
+    getCV(supabaseClient, id);
+  } else if(cvData.visibility == 'public' && cvData.password !== null){
+    return new Response(JSON.stringify({
+      error: 'CV is password protected'
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 403
+    });
+  } else {
+    return new Response(JSON.stringify({
+      error: 'CV not available'
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 404
+    });
+  }
+}
+
+async function getViewProtected(supabaseClient, viewData: CV | null) {
+  if(viewData === null){ throw Error('Bad request. Please provide a password.')}
+  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', viewData?.id);
+  if (cvDataError) throw cvDataError;
+  if(cvData.password !== null && cvData.visibility == 'public' && viewData?.password == cvData.password){
+    getCV(supabaseClient, viewData?.id);
+  } else {
+    return new Response(JSON.stringify({
+      error: 'CV is password protected'
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      },
+      status: 403
+    });
+  }
+}
+
 // CRUD CV
 async function getCV(supabaseClient, id) {
   const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('name, visibility').eq('id', id);
@@ -356,6 +404,21 @@ Deno.serve(async (req)=>{
           return getAllCVs(supabaseClient);
         default:
           return getAllCVs(supabaseClient);
+      }
+    } else if (action === 'view') {
+      let viewData = null;
+      if (method === 'POST') {
+        const body = await req.json();
+        viewData = body;
+      }
+      // call relevant method based on method and id
+      switch(true){
+        case id && method === 'GET':
+          return getView(supabaseClient, id);
+        case method === 'POST':
+          return getViewProtected(supabaseClient, viewData);
+        default:
+          return;
       }
     } else {
       console.log('no action provided');

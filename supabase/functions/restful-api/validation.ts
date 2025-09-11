@@ -7,7 +7,7 @@ export function validateCV(cv: CV){
         name: z.string().optional().transform((val) => {
             return val ? encode(val) : undefined;
         }),
-        password: z.int().gt(99999).lt(1000000).optional(),
+        password: z.int().gt(-1).lt(1000000).optional(),
         visibility: z.literal(['draft', 'private', 'public']).optional()
     })
     
