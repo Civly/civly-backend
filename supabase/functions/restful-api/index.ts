@@ -55,7 +55,6 @@ async function updateProfile(supabaseClient, id, profile) {
 async function getView(supabaseClient, id) {
   const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', id).single();
   if (cvDataError) throw cvDataError;
-  console.log(cvData);
   if(cvData.visibility == 'public' && cvData.password === null){
     return await getCV(supabaseClient, id);
   } else if(cvData.visibility == 'public' && cvData.password !== null){
