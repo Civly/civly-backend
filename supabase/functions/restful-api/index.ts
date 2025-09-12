@@ -153,12 +153,13 @@ async function getCV(supabaseClient, id) {
 
   const { data: skillGroups, skillGroupsError } = await supabaseClient.from('SkillGroup').select('*').eq('cv_id', id);
   if (skillGroupsError) throw skillGroupsError;
-  for (const sg of skillGroups) {
-    const { data: skill, skillError } = await supabaseClient.from('Skill').select('*').eq('skillgroup_id', sg.id);
-    if (skillError) throw skillError;
-    sg.skills = skill;
+  if(Array.isArray(skillGroups)){
+    for (const sg of skillGroups) {
+      const { data: skill, skillError } = await supabaseClient.from('Skill').select('*').eq('skillgroup_id', sg.id);
+      if (skillError) throw skillError;
+      sg.skills = skill;
+    }
   }
-
   return new Response(JSON.stringify({
     ...cvbaseData,
     layout_configs: {...layout_configs},
