@@ -139,7 +139,7 @@ async function getViewProtected(supabaseClient, viewData: CV | null, request) {
 
 // CRUD CV
 async function getCV(supabaseClient, id) {
-  const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('name, visibility').eq('id', id).single();
+  const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('id, name, visibility').eq('id', id).single();
   if (cvbaseDataError) throw cvbaseDataError;
   
   const { data: layout_configs, layout_configsError } = await supabaseClient.from('layoutConfigs').select('*').eq('cv_id', id).single();
