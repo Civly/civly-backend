@@ -423,7 +423,7 @@ Deno.serve(async (req)=>{
       let cv = null;
       if (method === 'POST' || method === 'PUT') {
         const body = await req.json();
-        cv = body.cv;
+        cv = body;
       }
       // call relevant method based on method and id
       switch(true){
