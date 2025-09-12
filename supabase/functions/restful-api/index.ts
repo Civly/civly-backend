@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
 import * as z from "npm:zod@latest";
 import {encode} from 'npm:html-entities@latest';
-import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validateSkill, validateSkillGroup } from './validation.ts';
+import { validateCV, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validatePersonalInformation, validateSkill, validateSkillGroup } from './validation.ts';
 import type { CV, EducationItem, ExperienceItem, Skill, SkillGroup } from './types.d.ts';
 
 //For CV-Password Brute Force Protection
@@ -218,7 +218,7 @@ async function updateCV(supabaseClient, id, cv) {
     parsedLayout_configs = validateLayoutConfigs(cv.layout_configs);
   }
   if(cv.personalInformation){
-    parsedPersonalInformation = validateLayoutConfigs(cv.personalInformation);
+    parsedPersonalInformation = validatePersonalInformation(cv.personalInformation);
   }
   if(Array.isArray(cv.experience)){
     for (const ex of cv.experience) {
