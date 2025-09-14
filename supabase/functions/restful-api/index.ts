@@ -176,7 +176,7 @@ async function getCV(supabaseClient, id) {
   });
 }
 async function getAllCVs(supabaseClient) {
-  const { data, error } = await supabaseClient.from('cv').select('*').order('created_at', {
+  const { data, error } = await supabaseClient.from('cv').select('id, created_at, updated_at, user_id, visibility, name').order('created_at', {
     ascending: false
   });
   if (error) {
