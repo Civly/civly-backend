@@ -435,7 +435,9 @@ async function duplicateCV(supabaseClient, id) {
   }
 
   return new Response(JSON.stringify({
-    id: cvData.id
+    id: cvData.id,
+    name: cvData.name,
+    created_at: cvData.created_at
   }), {
     headers: {
       ...corsHeaders,
