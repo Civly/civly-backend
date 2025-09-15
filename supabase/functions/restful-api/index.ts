@@ -171,7 +171,7 @@ async function getCVraw(supabaseClient, id) {
 }
 
 async function getCV(supabaseClient, id) {
-  const cv = getCVraw(supabaseClient, id);
+  const cv = await getCVraw(supabaseClient, id);
   return new Response(JSON.stringify(cv), {
     headers: {
       ...corsHeaders,
