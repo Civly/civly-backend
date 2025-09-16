@@ -153,11 +153,11 @@ async function getCVraw(supabaseClient, id) {
   
   const { data: layout_configs, layout_configsError } = await supabaseClient.from('layoutConfigs').select('template_id, color_id, font_size').eq('cv_id', id).single();
   if (layout_configsError) throw layout_configsError;
-  const { data: personalInformation, personalInformationError } = await supabaseClient.from('personalInformation').select('name, surname, profile_url, birthdate, email, phone, location, linkedin, xing, website, professionalTitle, summary, ').eq('cv_id', id).single();
+  const { data: personalInformation, personalInformationError } = await supabaseClient.from('personalInformation').select('name, surname, profile_url, birthdate, email, phone, location, linkedin, xing, website, professionalTitle, summary').eq('cv_id', id).single();
   if (personalInformationError) throw personalInformationError;
   const { data: experience, experienceError } = await supabaseClient.from('ExperienceItem').select('role, company, startDate, currentlyWorkingHere, endDate, location, description').eq('cv_id', id);
   if (experienceError) throw experienceError;
-  const { data: education, educationError } = await supabaseClient.from('EducationItem').select('degree, institution, startdate, currentlyStudyingHere, endDate, location, description').eq('cv_id', id);
+  const { data: education, educationError } = await supabaseClient.from('EducationItem').select('degree, institution, startDate, currentlyStudyingHere, endDate, location, description').eq('cv_id', id);
   if (educationError) throw educationError;
 
   const { data: skillGroups, skillGroupsError } = await supabaseClient.from('SkillGroup').select('id, name, order').eq('cv_id', id);
