@@ -56,7 +56,7 @@ async function getView(supabaseClient, id) {
   const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', id).single();
   if (cvDataError) throw cvDataError;
   if(cvData.visibility == 'public' && cvData.password === null){
-    return await getCV(supabaseClient, id);
+    return await getCV2(supabaseClient, id);
   } else if(cvData.visibility == 'public' && cvData.password !== null){
     return new Response(JSON.stringify({
       error: 'CV is password protected'
@@ -113,7 +113,7 @@ async function getViewProtected(supabaseClient, viewData: CV | null, request) {
     if(attempt){
       await serviceRole.from('FailedLoginAttempts').delete().eq('ip', ip).eq('cv_id', viewData?.id);
     }
-    return await getCV(supabaseClient, viewData?.id);
+    return await getCV2(supabaseClient, viewData?.id);
   } else {
     if(attempt){
       const newAttempts = attempt.failedAttempts + 1;
@@ -135,6 +135,15 @@ async function getViewProtected(supabaseClient, viewData: CV | null, request) {
       status: 403
     });
   }
+}
+// CRUD CV2 with json field in table cv
+async function getCVraw2(supabaseClient, id) {
+  const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('id, name, visibility, data').eq('id', id).single();
+  if (cvbaseDataError) throw cvbaseDataError;
+  
+  return {
+    ...cvbaseData
+  };
 }
 
 // CRUD CV
@@ -172,6 +181,16 @@ async function getCVraw(supabaseClient, id) {
 
 async function getCV(supabaseClient, id) {
   const cv = await getCVraw(supabaseClient, id);
+  return new Response(JSON.stringify(cv), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
+}
+async function getCV2(supabaseClient, id) {
+  const cv = await getCVraw2(supabaseClient, id);
   return new Response(JSON.stringify(cv), {
     headers: {
       ...corsHeaders,
@@ -322,6 +341,51 @@ async function updateCV(supabaseClient, id, cv) {
     experience: parsedExperiences,
     education: parsedEducation,
     skillGroups: parsedskillGroups
+  }), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
+}
+
+async function updateCV2(supabaseClient, id, cv) {
+  let parsedCV = validateCV(cv);
+ 
+  //Update 
+  const { error: cvupdateError } = await supabaseClient.from('cv').update({
+    data: parsedCV,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (cvupdateError) throw cvupdateError;
+  
+  return new Response(JSON.stringify(parsedCV), {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json'
+    },
+    status: 200
+  });
+}
+
+async function duplicateCV2(supabaseClient, id) {
+  const userId = await getUserId(supabaseClient);
+  const cv = await getCVraw2(supabaseClient, id);
+  //Update 
+  const { data: cvData, error: cvinsertError } = await supabaseClient.from('cv').insert({
+    user_id: userId,
+    visibility: 'draft',
+    name: cv.name + ' COPY', 
+    updated_at: new Date().toISOString(),
+    data: cv.data
+  }).select().single();
+  if (cvinsertError) throw cvinsertError;
+
+  return new Response(JSON.stringify({
+    id: cvData.id,
+    name: cvData.name,
+    created_at: cvData.created_at
   }), {
     headers: {
       ...corsHeaders,
@@ -559,6 +623,31 @@ Deno.serve(async (req)=>{
           return deleteCV(supabaseClient, id);
         case id && method === 'POST':
           return duplicateCV(supabaseClient, id);
+        case method === 'POST':
+          if (cv === null) return;
+          return createCV(supabaseClient, cv);
+        case method === 'GET':
+          return getAllCVs(supabaseClient);
+        default:
+          return getAllCVs(supabaseClient);
+      }
+    } else if (action === 'cv2') {
+      let cv = null;
+      if (method === 'POST' || method === 'PUT') {
+        const body = await req.json();
+        cv = body;
+      }
+      // call relevant method based on method and id
+      switch(true){
+        case id && method === 'GET':
+          return getCV2(supabaseClient, id);
+        case id && method === 'PUT':
+          if (cv === null) return;
+          return updateCV2(supabaseClient, id, cv);
+        case id && method === 'DELETE':
+          return deleteCV(supabaseClient, id);
+        case id && method === 'POST':
+          return duplicateCV2(supabaseClient, id);
         case method === 'POST':
           if (cv === null) return;
           return createCV(supabaseClient, cv);
