@@ -160,13 +160,14 @@ async function getCVraw(supabaseClient, id) {
   const { data: education, educationError } = await supabaseClient.from('EducationItem').select('degree, institution, startdate, location, description').eq('cv_id', id);
   if (educationError) throw educationError;
 
-  const { data: skillGroups, skillGroupsError } = await supabaseClient.from('SkillGroup').select('name, order').eq('cv_id', id);
+  const { data: skillGroups, skillGroupsError } = await supabaseClient.from('SkillGroup').select('id, name, order').eq('cv_id', id);
   if (skillGroupsError) throw skillGroupsError;
   if(Array.isArray(skillGroups)){
     for (const sg of skillGroups) {
       const { data: skill, skillError } = await supabaseClient.from('Skill').select('name, order').eq('skillgroup_id', sg.id);
       if (skillError) throw skillError;
       sg.skills = skill;
+      delete sg.id;
     }
   }
   return {
