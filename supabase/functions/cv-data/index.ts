@@ -33,7 +33,7 @@ app.get("/duplicate", (req, res) => {
   res.send("Hello World!");
 });
 
-app.get("/get", (req, res) => {
+app.get("cv-data/", (req, res) => {
   res.send("Hello World!");
 });
 
