@@ -1,9 +1,14 @@
-import { z } from "zod";
+import * as z from "npm:zod@latest";
+import {encode} from 'npm:html-entities@latest';
 
 export const educationItemSchema = z
   .object({
-    degree: z.string().min(1, { message: "Degree field is required" }),
-    institution: z.string().min(1, { message: "Institution name is required" }),
+    degree: z.string().min(1, { message: "Degree field is required" }).transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
+    institution: z.string().optional().transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
     startDate: z
       .string()
       .min(1, { message: "Start date is required" })
@@ -17,11 +22,13 @@ export const educationItemSchema = z
       .refine((val) => !val || !isNaN(Date.parse(val)), {
         message: "End date must be a valid date (YYYY-MM-DD)",
       }),
-    location: z.string().optional(),
-    description: z.string().optional(),
-    isEditing: z.boolean().optional(),
+    location: z.string().optional().transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
+    description: z.string().optional().transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
   })
-  .strict()
   .refine(
     (data) => {
       if (!data.currentlyStudyingHere && !data.endDate) return false;

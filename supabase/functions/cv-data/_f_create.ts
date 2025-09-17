@@ -1,10 +1,9 @@
-import getUserId from "./_f_getUserId";
-import * as z from "zod";
-import { encode } from "html-entities";
-import { corsHeaders } from "./_h_corsHeaders";
+import { getUserId } from "./_f_getUserId.ts";
+import {encode} from 'npm:html-entities@latest';
+import * as z from "npm:zod@latest";
+import { corsHeaders } from "./_h_corsHeaders.ts";
 
 export async function createCV(supabaseClient, cv) {
-  console.log("creating cv", cv);
   const userId = await getUserId(supabaseClient);
   let insertData;
   insertData = {

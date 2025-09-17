@@ -1,9 +1,14 @@
-import { z } from "zod";
+import * as z from "npm:zod@latest";
+import {encode} from 'npm:html-entities@latest';
 
 export const experienceItemSchema = z
   .object({
-    role: z.string().min(1, { message: "Role is required" }),
-    company: z.string().min(1, { message: "Company name is required" }),
+    role: z.string().min(1, { message: "Role is required" }).transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
+    company: z.string().optional().transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
     startDate: z
       .string()
       .min(1, { message: "Start date is required" })
@@ -17,11 +22,13 @@ export const experienceItemSchema = z
       .refine((val) => !val || !isNaN(Date.parse(val)), {
         message: "End date must be a valid date (YYYY-MM-DD)",
       }),
-    location: z.string().optional(),
-    description: z.string().optional(),
-    isEditing: z.boolean().optional(),
+    location: z.string().optional().transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
+    description: z.string().optional().transform((val) => {
+            return val ? encode(val) : undefined;
+        }),
   })
-  .strict()
   // Rule: endDate required unless currently working
   .refine((data) => data.currentlyWorkingHere || !!data.endDate, {
     message: "End date is required unless you are currently working here",

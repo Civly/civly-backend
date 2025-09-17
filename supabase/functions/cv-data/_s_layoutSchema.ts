@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "npm:zod@latest";
 
 export const layoutConfigsSchema = z
   .object({
