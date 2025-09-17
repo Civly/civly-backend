@@ -1,4 +1,3 @@
-import { createClient } from "./supabase.ts";
 import express from "npm:express@4.18.2";
 import cors from "npm:cors@latest";
 const port = 3000;
