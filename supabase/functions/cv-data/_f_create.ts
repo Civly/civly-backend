@@ -8,6 +8,30 @@ export async function createCV(supabaseClient, cv) {
   let insertData;
   insertData = {
     userId: userId,
+    visibility: "draft",
+    layoutConfigs: {
+      templateId: 0,
+      colorId: 0,
+      fontId: 0,
+      fontSizeId: 0,
+    },
+    personalInformation: {
+      name: "",
+      surname: "",
+      profileUrl: "",
+      birthdate: "",
+      email: "",
+      phone: "",
+      location: "",
+      linkedin: "",
+      xing: "",
+      website: "",
+      professionalTitle: "",
+      summary: "",
+    },
+    experience: [],
+    education: [],
+    skillGroups: [],
   };
   if (cv.name !== null) {
     const schema = z
@@ -28,6 +52,30 @@ export async function createCV(supabaseClient, cv) {
     insertData = {
       userId: userId,
       name: parsed.name,
+      visibility: "draft",
+      layoutConfigs: {
+        templateId: 0,
+        colorId: 0,
+        fontId: 0,
+        fontSizeId: 0,
+      },
+      personalInformation: {
+        name: "",
+        surname: "",
+        profileUrl: "",
+        birthdate: "",
+        email: "",
+        phone: "",
+        location: "",
+        linkedin: "",
+        xing: "",
+        website: "",
+        professionalTitle: "",
+        summary: "",
+      },
+      experience: [],
+      education: [],
+      skillGroups: [],
     };
   }
   const { data, error } = await supabaseClient

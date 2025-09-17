@@ -4,8 +4,8 @@ export const layoutConfigsSchema = z
   .object({
     templateId: z.number().int().nonnegative(),
     colorId: z.number().int().nonnegative(),
-    fontSize: z.number().int(), // bounds elsewhere
+    fontId: z.number().int().nonnegative(),
+    fontSizeId: z.number().int().nonnegative(),
   })
-  .strict();
 
 export type LayoutConfigs = z.infer<typeof layoutConfigsSchema>;
