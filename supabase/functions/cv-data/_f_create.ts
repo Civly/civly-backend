@@ -9,6 +9,7 @@ export async function createCV(supabaseClient, cv) {
   insertData = {
     userId: userId,
     visibility: "draft",
+    updatedAt: new Date().toISOString(),
     layoutConfigs: {
       templateId: 0,
       colorId: 0,
@@ -53,6 +54,7 @@ export async function createCV(supabaseClient, cv) {
       userId: userId,
       name: parsed.name,
       visibility: "draft",
+      updatedAt: new Date().toISOString(),
       layoutConfigs: {
         templateId: 0,
         colorId: 0,
