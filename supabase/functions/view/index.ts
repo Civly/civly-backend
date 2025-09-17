@@ -1,13 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.8";
 import * as z from "npm:zod@latest";
 import { corsHeaders } from "./_h_corsHeaders.ts";
-import { getCV } from "./_f_getCV.ts";
-import { updateCV } from "./_f_update.ts";
-import { deleteCV } from "./_f_delete.ts";
-import { duplicateCV } from "./_f_duplicate.ts";
-import { createCV } from "./_f_create.ts";
-import { getAllCVs } from "./_f_getAll.ts";
-
+import { getView } from "./_f_get.ts";
+import { getViewProtected } from "./_f_getProtected.ts";
 
 Deno.serve(async (req) => {
   const { url, method } = req;
@@ -32,36 +27,36 @@ Deno.serve(async (req) => {
     );
     // For more details on URLPattern, check https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
     const instrumentPattern = new URLPattern({
-      pathname: "/cv-data/:id?",
+      pathname: "/view/:id?",
     });
     const matchingPath = instrumentPattern.exec(url);
     const id = matchingPath ? matchingPath.pathname.groups.id : null;
-
-    let cv = null;
-    if (method === "POST" || method === "PUT") {
-      const body = await req.json();
-      cv = body;
+    
+    let viewData = null;
+    if (method === "POST") {
+        const body = await req.json();
+        viewData = body;
     }
     // call relevant method based on method and id
     switch (true) {
-      case id && method === "GET":
-        return getCV(supabaseClient, id);
-      case id && method === "PUT":
-        if (cv === null) return;
-        return updateCV(supabaseClient, id, cv);
-      case id && method === "DELETE":
-        return deleteCV(supabaseClient, id);
-      case id && method === "POST":
-        return duplicateCV(supabaseClient, id);
-      case method === "POST":
-        if (cv === null) return;
-        return createCV(supabaseClient, cv);
-      case method === "GET":
-        return getAllCVs(supabaseClient);
-      default:
-        return getAllCVs(supabaseClient);
+        case id && method === "GET":
+            return getView(supabaseClient, id);
+        case method === "POST":
+            const serviceRole = createClient(
+                Deno.env.get("SUPABASE_URL"),
+                Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+                {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false,
+                },
+                }
+            );
+            return getViewProtected(serviceRole, supabaseClient, viewData, req);
+        default:
+            return;
     }
-    
   } catch (error) {
     console.error(error);
     if (error instanceof z.ZodError) {

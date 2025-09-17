@@ -1,13 +1,18 @@
 import { createClient } from "npm:@supabase/supabase-js@2.49.8";
-import * as z from "npm:zod@latest";
-import { corsHeaders } from "./_h_corsHeaders.ts";
-import { getCV } from "./_f_getCV.ts";
-import { updateCV } from "./_f_update.ts";
-import { deleteCV } from "./_f_delete.ts";
-import { duplicateCV } from "./_f_duplicate.ts";
-import { createCV } from "./_f_create.ts";
-import { getAllCVs } from "./_f_getAll.ts";
+import { getProfile } from "./_f_get.ts";
+import { updateProfile } from "./_f_update.ts";
+import { deleteProfile } from "./_f_delete.ts";
 
+//For CV-Password Brute Force Protection
+const MAX_ATTEMPTS = 3;
+const BLOCK_TIME = 5 * 60 * 1000;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, Content-Type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
+};
 
 Deno.serve(async (req) => {
   const { url, method } = req;
@@ -32,36 +37,28 @@ Deno.serve(async (req) => {
     );
     // For more details on URLPattern, check https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
     const instrumentPattern = new URLPattern({
-      pathname: "/cv-data/:id?",
+      pathname: "/profile/:id?",
     });
     const matchingPath = instrumentPattern.exec(url);
     const id = matchingPath ? matchingPath.pathname.groups.id : null;
-
-    let cv = null;
+    
+    let profile = null;
     if (method === "POST" || method === "PUT") {
       const body = await req.json();
-      cv = body;
+      profile = body;
     }
     // call relevant method based on method and id
     switch (true) {
-      case id && method === "GET":
-        return getCV(supabaseClient, id);
-      case id && method === "PUT":
-        if (cv === null) return;
-        return updateCV(supabaseClient, id, cv);
-      case id && method === "DELETE":
-        return deleteCV(supabaseClient, id);
-      case id && method === "POST":
-        return duplicateCV(supabaseClient, id);
-      case method === "POST":
-        if (cv === null) return;
-        return createCV(supabaseClient, cv);
-      case method === "GET":
-        return getAllCVs(supabaseClient);
-      default:
-        return getAllCVs(supabaseClient);
+    case id && method === "GET":
+        return getProfile(supabaseClient, id);
+    case id && method === "PUT":
+        if (profile === null) return;
+        return updateProfile(supabaseClient, id, profile);
+    case id && method === "DELETE":
+        return deleteProfile(supabaseClient, id);
+    default:
+        return;
     }
-    
   } catch (error) {
     console.error(error);
     if (error instanceof z.ZodError) {
