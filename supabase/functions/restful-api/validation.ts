@@ -30,10 +30,10 @@ export function validateCV(cv: CV){
 export function validateLayoutConfigs(layoutConfigs: LayoutConfigs){
     const schema = z.object({
         id: z.uuid(),
-        cv_id: z.uuid(),
-        template_id: z.int().optional(),
-        color_id: z.int().optional(),
-        font_size: z.int().optional()
+        cvId: z.uuid(),
+        templateId: z.int().optional(),
+        colorId: z.int().optional(),
+        fontSize: z.int().optional()
     })
     
     try {
@@ -47,14 +47,14 @@ export function validateLayoutConfigs(layoutConfigs: LayoutConfigs){
 export function validatePersonalInformation(personalInformation: PersonalInformation){
     const schema = z.object({
         id: z.uuid(),
-        cv_id: z.uuid(),
+        cvId: z.uuid(),
         name: z.string().optional().transform((val) => {
             return val ? encode(val) : undefined;
         }),
         surname: z.string().optional().transform((val) => {
             return val ? encode(val) : undefined;
         }),
-        profile_url: z.string().optional().transform((val) => {
+        profileUrl: z.string().optional().transform((val) => {
             return val ? encode(val) : undefined;
         }),
         birthdate: z.datetime().optional(),

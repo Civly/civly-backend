@@ -8,18 +8,18 @@ export interface Profile {
   location?: string;
   website?: string;
   summary?: string;
-  updated_at?: string;
-  avatar_url?: string;
+  updatedAt?: string;
+  avatarUrl?: string;
 }
 
 export interface CV {
   id: string;
-  updated_at?: Date;
-  user_id: string;
+  updatedAt?: Date;
+  userId: string;
   visibility?: 'draft' | 'private' | 'public';
   password?: string;
   name?: string;
-  layout_configs?: LayoutConfigs
+  layoutConfigs?: LayoutConfigs
   personalInformation?: PersonalInformation
   experience?: ExperienceItem[]
   education?: EducationItem[]
@@ -28,11 +28,11 @@ export interface CV {
 
 export interface PersonalInformation {
   id?: string;
-  cv_id?: string;
-  user_id?: string;
+  cvId?: string;
+  userId?: string;
   name?: string;
   surname?: string;
-  profile_url?: string;
+  profileUrl?: string;
   birthdate?: Date;
   email?: string;
   phone?: string;
@@ -46,17 +46,17 @@ export interface PersonalInformation {
 
 export interface LayoutConfigs {
   id?: string;
-  cv_id?: string;
-  user_id?: string;
-  template_id?: number;
-  color_id?: number;
-  font_size?: number;
+  cvId?: string;
+  userId?: string;
+  templateId?: number;
+  colorId?: number;
+  fontSize?: number;
 }
 
 export interface ExperienceItem {
   id?: string;
-  cv_id?: string;
-  user_id?: string;
+  cvId?: string;
+  userId?: string;
   role?: string;
   company?: string;
   startDate?: Date;
@@ -68,8 +68,8 @@ export interface ExperienceItem {
 
 export interface EducationItem {
   id?: string;
-  cv_id?: string;
-  user_id?: string;
+  cvId?: string;
+  userId?: string;
   degree?: string;
   institution?: string;
   startDate?: Date;
@@ -81,8 +81,8 @@ export interface EducationItem {
 
 export interface SkillGroup {
   id?: string;
-  cv_id?: string;
-  user_id?: string;
+  cvId?: string;
+  userId?: string;
   name?: string;           
   order?: number;  
   skills?: Skill[];         
@@ -90,8 +90,8 @@ export interface SkillGroup {
 
 export interface Skill {
   id?: string;
-  skillgroup_id?: string;
-  user_id?: string;
+  skillgroupId?: string;
+  userId?: string;
   name?: string; 
   order?: number;
 }
@@ -99,7 +99,7 @@ export interface Skill {
 export interface FailedLoginAttempt {
   id?: string;
   ip?: string;
-  cv_id: string;
+  cvId: string;
   failedAttempts?: number;
   lockedUntil?: Date;
   updatedAt?: Date;
