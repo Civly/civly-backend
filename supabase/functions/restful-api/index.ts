@@ -1,170 +1,289 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
+import { createClient } from "npm:@supabase/supabase-js@2.49.8";
 import * as z from "npm:zod@latest";
-import {encode} from 'npm:html-entities@latest';
-import { validateCV, validateCV2, validateEducationItem, validateExperienceItem, validateLayoutConfigs, validatePersonalInformation, validateSkill, validateSkillGroup } from './validation.ts';
-import type { CV, EducationItem, ExperienceItem, Skill, SkillGroup } from './types.d.ts';
+import { encode } from "npm:html-entities@latest";
+import {
+  validateCV,
+  validateCV2,
+  validateEducationItem,
+  validateExperienceItem,
+  validateLayoutConfigs,
+  validatePersonalInformation,
+  validateSkill,
+  validateSkillGroup,
+} from "./validation.ts";
+import type {
+  CV,
+  EducationItem,
+  ExperienceItem,
+  Skill,
+  SkillGroup,
+} from "./types.d.ts";
 
 //For CV-Password Brute Force Protection
 const MAX_ATTEMPTS = 3;
 const BLOCK_TIME = 5 * 60 * 1000;
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, Content-Type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE'
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, Content-Type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
 };
 // RUD Profile
 async function getProfile(supabaseClient, id) {
-  const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', id).single();
+  const { data: profile, error } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", id)
+    .single();
   if (error) throw error;
-  return new Response(JSON.stringify({
-    profile
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      profile,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 async function deleteProfile(supabaseClient, id) {
-  const { error } = await supabaseClient.from('profiles').delete().eq('id', id);
+  const { error } = await supabaseClient.from("profiles").delete().eq("id", id);
   if (error) throw error;
   return new Response(JSON.stringify({}), {
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    status: 200
+    status: 200,
   });
 }
 async function updateProfile(supabaseClient, id, profile) {
-  const { error } = await supabaseClient.from('profiles').update(profile).eq('id', id);
+  const { error } = await supabaseClient
+    .from("profiles")
+    .update(profile)
+    .eq("id", id);
   if (error) throw error;
-  return new Response(JSON.stringify({
-    profile
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      profile,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 // View CV for public
 async function getView(supabaseClient, id) {
-  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', id).single();
+  const { data: cvData, cvDataError } = await supabaseClient
+    .from("cv")
+    .select("visibility, password")
+    .eq("id", id)
+    .single();
   if (cvDataError) throw cvDataError;
-  if(cvData.visibility == 'public' && cvData.password === null){
+  if (cvData.visibility == "public" && cvData.password === null) {
     return await getCV2(supabaseClient, id);
-  } else if(cvData.visibility == 'public' && cvData.password !== null){
-    return new Response(JSON.stringify({
-      error: 'CV is password protected'
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status: 403
-    });
+  } else if (cvData.visibility == "public" && cvData.password !== null) {
+    return new Response(
+      JSON.stringify({
+        error: "CV is password protected",
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 403,
+      }
+    );
   } else {
-    return new Response(JSON.stringify({
-      error: 'CV not available'
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status: 404
-    });
+    return new Response(
+      JSON.stringify({
+        error: "CV not available",
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 404,
+      }
+    );
   }
 }
 
 async function getViewProtected(supabaseClient, viewData: CV | null, request) {
-  if(viewData === null) { 
-    throw Error('Bad request. Please provide a password.')
+  if (viewData === null) {
+    throw Error("Bad request. Please provide a password.");
   }
-  const serviceRole = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  })
-  const ip = request.headers.get("x-forwarded-for").substring(0,request.headers.get("x-forwarded-for").indexOf(',')) || "unknown";
-  const {data: attempt} = await serviceRole.from('FailedLoginAttempts').select('lockedUntil, failedAttempts').eq('ip', ip).eq('cvId',viewData?.id).single();
-
-  if(attempt?.lockedUntil && new Date(attempt.lockedUntil) > new Date()) {
-    return new Response(JSON.stringify({
-      error: 'Too many failed password attempts.'
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
+  const serviceRole = createClient(
+    Deno.env.get("SUPABASE_URL"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
       },
-      status: 429
-    });
+    }
+  );
+  const ip =
+    request.headers
+      .get("x-forwarded-for")
+      .substring(0, request.headers.get("x-forwarded-for").indexOf(",")) ||
+    "unknown";
+  const { data: attempt } = await serviceRole
+    .from("FailedLoginAttempts")
+    .select("lockedUntil, failedAttempts")
+    .eq("ip", ip)
+    .eq("cvId", viewData?.id)
+    .single();
+
+  if (attempt?.lockedUntil && new Date(attempt.lockedUntil) > new Date()) {
+    return new Response(
+      JSON.stringify({
+        error: "Too many failed password attempts.",
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 429,
+      }
+    );
   }
 
-  const { data: cvData, cvDataError } = await supabaseClient.from('cv').select('visibility, password').eq('id', viewData?.id).single();
+  const { data: cvData, cvDataError } = await supabaseClient
+    .from("cv")
+    .select("visibility, password")
+    .eq("id", viewData?.id)
+    .single();
   if (cvDataError) throw cvDataError;
-  if(cvData.password !== null && cvData.visibility == 'public' && viewData?.password == cvData.password){
+  if (
+    cvData.password !== null &&
+    cvData.visibility == "public" &&
+    viewData?.password == cvData.password
+  ) {
     //Password was correct reset retries
-    if(attempt){
-      await serviceRole.from('FailedLoginAttempts').delete().eq('ip', ip).eq('cvId', viewData?.id);
+    if (attempt) {
+      await serviceRole
+        .from("FailedLoginAttempts")
+        .delete()
+        .eq("ip", ip)
+        .eq("cvId", viewData?.id);
     }
     return await getCV2(supabaseClient, viewData?.id);
   } else {
-    if(attempt){
+    if (attempt) {
       const newAttempts = attempt.failedAttempts + 1;
-      await serviceRole.from('FailedLoginAttempts').update({
-        failedAttempts: newAttempts,
-        lockedUntil: newAttempts >= MAX_ATTEMPTS ? new Date(Date.now() + BLOCK_TIME).toISOString() : null,
-        updatedAt: new Date().toISOString()
-      }).eq('ip',ip).eq('cvId', viewData?.id);
+      await serviceRole
+        .from("FailedLoginAttempts")
+        .update({
+          failedAttempts: newAttempts,
+          lockedUntil:
+            newAttempts >= MAX_ATTEMPTS
+              ? new Date(Date.now() + BLOCK_TIME).toISOString()
+              : null,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq("ip", ip)
+        .eq("cvId", viewData?.id);
     } else {
-      await serviceRole.from('FailedLoginAttempts').insert({ip, cvId: viewData?.id, failedAttempts: 1, createdAt: new Date().toISOString()})
+      await serviceRole
+        .from("FailedLoginAttempts")
+        .insert({
+          ip,
+          cvId: viewData?.id,
+          failedAttempts: 1,
+          createdAt: new Date().toISOString(),
+        });
     }
-    return new Response(JSON.stringify({
-      error: 'CV is password protected'
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status: 403
-    });
+    return new Response(
+      JSON.stringify({
+        error: "CV is password protected",
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 403,
+      }
+    );
   }
 }
 // CRUD CV2 with json field in table cv
 async function getCVraw2(supabaseClient, id) {
-  const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('id, name, visibility, data').eq('id', id).single();
+  const { data: cvbaseData, cvbaseDataError } = await supabaseClient
+    .from("cv")
+    .select("id, name, visibility, data")
+    .eq("id", id)
+    .single();
   if (cvbaseDataError) throw cvbaseDataError;
-  
+
   return {
-    ...cvbaseData
+    ...cvbaseData,
   };
 }
 
 // CRUD CV
 async function getCVraw(supabaseClient, id) {
-  const { data: cvbaseData, cvbaseDataError } = await supabaseClient.from('cv').select('id, name, visibility').eq('id', id).single();
+  const { data: cvbaseData, cvbaseDataError } = await supabaseClient
+    .from("cv")
+    .select("id, name, visibility")
+    .eq("id", id)
+    .single();
   if (cvbaseDataError) throw cvbaseDataError;
-  
-  const { data: layoutConfigs, layoutConfigsError } = await supabaseClient.from('layoutConfigs').select('templateId, colorId, fontSize').eq('cvId', id).single();
+
+  const { data: layoutConfigs, layoutConfigsError } = await supabaseClient
+    .from("layoutConfigs")
+    .select("templateId, colorId, fontSize")
+    .eq("cvId", id)
+    .single();
   if (layoutConfigsError) throw layoutConfigsError;
-  const { data: personalInformation, personalInformationError } = await supabaseClient.from('personalInformation').select('name, surname, profileUrl, birthdate, email, phone, location, linkedin, xing, website, professionalTitle, summary').eq('cvId', id).single();
+  const { data: personalInformation, personalInformationError } =
+    await supabaseClient
+      .from("personalInformation")
+      .select(
+        "name, surname, profileUrl, birthdate, email, phone, location, linkedin, xing, website, professionalTitle, summary"
+      )
+      .eq("cvId", id)
+      .single();
   if (personalInformationError) throw personalInformationError;
-  const { data: experience, experienceError } = await supabaseClient.from('ExperienceItem').select('role, company, startDate, currentlyWorkingHere, endDate, location, description').eq('cvId', id);
+  const { data: experience, experienceError } = await supabaseClient
+    .from("ExperienceItem")
+    .select(
+      "role, company, startDate, currentlyWorkingHere, endDate, location, description"
+    )
+    .eq("cvId", id);
   if (experienceError) throw experienceError;
-  const { data: education, educationError } = await supabaseClient.from('EducationItem').select('degree, institution, startDate, currentlyStudyingHere, endDate, location, description').eq('cvId', id);
+  const { data: education, educationError } = await supabaseClient
+    .from("EducationItem")
+    .select(
+      "degree, institution, startDate, currentlyStudyingHere, endDate, location, description"
+    )
+    .eq("cvId", id);
   if (educationError) throw educationError;
 
-  const { data: skillGroups, skillGroupsError } = await supabaseClient.from('SkillGroup').select('id, name, order').eq('cvId', id);
+  const { data: skillGroups, skillGroupsError } = await supabaseClient
+    .from("SkillGroup")
+    .select("id, name, order")
+    .eq("cvId", id);
   if (skillGroupsError) throw skillGroupsError;
-  if(Array.isArray(skillGroups)){
+  if (Array.isArray(skillGroups)) {
     for (const sg of skillGroups) {
-      const { data: skill, skillError } = await supabaseClient.from('Skill').select('name, order').eq('skillgroupId', sg.id);
+      const { data: skill, skillError } = await supabaseClient
+        .from("Skill")
+        .select("name, order")
+        .eq("skillgroupId", sg.id);
       if (skillError) throw skillError;
       sg.skills = skill;
       delete sg.id;
@@ -172,11 +291,11 @@ async function getCVraw(supabaseClient, id) {
   }
   return {
     ...cvbaseData,
-    layoutConfigs: {...layoutConfigs},
-    personalInformation: {...personalInformation},
+    layoutConfigs: { ...layoutConfigs },
+    personalInformation: { ...personalInformation },
     experience: experience,
     education: education,
-    skillGroups: skillGroups
+    skillGroups: skillGroups,
   };
 }
 
@@ -185,9 +304,9 @@ async function getCV(supabaseClient, id) {
   return new Response(JSON.stringify(cv), {
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    status: 200
+    status: 200,
   });
 }
 async function getCV2(supabaseClient, id) {
@@ -195,38 +314,44 @@ async function getCV2(supabaseClient, id) {
   return new Response(JSON.stringify(cv), {
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    status: 200
+    status: 200,
   });
 }
 async function getAllCVs(supabaseClient) {
-  const { data, error } = await supabaseClient.from('cv').select('id, createdAt, updatedAt, userId, visibility, name').order('createdAt', {
-    ascending: false
-  });
+  const { data, error } = await supabaseClient
+    .from("cv")
+    .select("id, createdAt, updatedAt, userId, visibility, name")
+    .order("createdAt", {
+      ascending: false,
+    });
   if (error) {
     console.log(error);
     throw error;
   }
-  return new Response(JSON.stringify({
-    data
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      data,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 async function deleteCV(supabaseClient, id) {
-  const { error } = await supabaseClient.from('cv').delete().eq('id', id);
+  const { error } = await supabaseClient.from("cv").delete().eq("id", id);
   if (error) throw error;
   return new Response(JSON.stringify({}), {
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    status: 200
+    status: 200,
   });
 }
 async function updateCV(supabaseClient, id, cv) {
@@ -239,27 +364,29 @@ async function updateCV(supabaseClient, id, cv) {
   let parsedEducation: EducationItem[] = [];
   let parsedskillGroups: SkillGroup[] = [];
 
-  if(cv.layoutConfigs){
+  if (cv.layoutConfigs) {
     parsedLayoutConfigs = validateLayoutConfigs(cv.layoutConfigs);
   }
-  if(cv.personalInformation){
-    parsedPersonalInformation = validatePersonalInformation(cv.personalInformation);
+  if (cv.personalInformation) {
+    parsedPersonalInformation = validatePersonalInformation(
+      cv.personalInformation
+    );
   }
-  if(Array.isArray(cv.experience)){
+  if (Array.isArray(cv.experience)) {
     for (const ex of cv.experience) {
       parsedExperiences.push(validateExperienceItem(ex));
     }
   }
-  if(Array.isArray(cv.education)){
+  if (Array.isArray(cv.education)) {
     for (const ed of cv.education) {
       parsedEducation.push(validateEducationItem(ed));
     }
   }
-  if(Array.isArray(cv.skillGroups)){
+  if (Array.isArray(cv.skillGroups)) {
     for (const sg of cv.skillGroups) {
       let validatedSG = validateSkillGroup(sg);
       let parsedSkillsTemp: Skill[] = [];
-      if(Array.isArray(sg.skills)){    
+      if (Array.isArray(sg.skills)) {
         for (const skill of sg.skills) {
           parsedSkillsTemp.push(validateSkill(skill));
         }
@@ -269,27 +396,43 @@ async function updateCV(supabaseClient, id, cv) {
     }
   }
 
-  //Update 
-  const { error: cvupdateError } = await supabaseClient.from('cv').update({
-    ...parsedCV,
-    updatedAt: new Date().toISOString()
-  }).eq('id', id);
+  //Update
+  const { error: cvupdateError } = await supabaseClient
+    .from("cv")
+    .update({
+      ...parsedCV,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", id);
   if (cvupdateError) throw cvupdateError;
-  const { error: layoutconfigsError } = await supabaseClient.from('layoutConfigs').update({
-    ...parsedLayoutConfigs,
-  }).eq('cvId', id).eq('userId', userId);
+  const { error: layoutconfigsError } = await supabaseClient
+    .from("layoutConfigs")
+    .update({
+      ...parsedLayoutConfigs,
+    })
+    .eq("cvId", id)
+    .eq("userId", userId);
   if (layoutconfigsError) throw layoutconfigsError;
-  const { error: personalInformationError } = await supabaseClient.from('personalInformation').update({
-    ...parsedPersonalInformation,
-  }).eq('cvId', id).eq('userId', userId);
+  const { error: personalInformationError } = await supabaseClient
+    .from("personalInformation")
+    .update({
+      ...parsedPersonalInformation,
+    })
+    .eq("cvId", id)
+    .eq("userId", userId);
   if (personalInformationError) throw personalInformationError;
 
   //Delete first, then insert as new
-  const { error: deleteExpError } = await supabaseClient.from('ExperienceItem').delete().eq('cvId', id).eq('userId', userId);
+  const { error: deleteExpError } = await supabaseClient
+    .from("ExperienceItem")
+    .delete()
+    .eq("cvId", id)
+    .eq("userId", userId);
   if (deleteExpError) throw deleteExpError;
   for (const exp of parsedExperiences) {
-    const { error: insertExpError } = await supabaseClient.from('ExperienceItem').insert(
-      {
+    const { error: insertExpError } = await supabaseClient
+      .from("ExperienceItem")
+      .insert({
         cvId: id,
         userId: userId,
         ...exp,
@@ -297,11 +440,16 @@ async function updateCV(supabaseClient, id, cv) {
     if (insertExpError) throw insertExpError;
   }
 
-  const { error: deleteEduError } = await supabaseClient.from('EducationItem').delete().eq('cvId', id).eq('userId', userId);
+  const { error: deleteEduError } = await supabaseClient
+    .from("EducationItem")
+    .delete()
+    .eq("cvId", id)
+    .eq("userId", userId);
   if (deleteEduError) throw deleteEduError;
   for (const edu of parsedEducation) {
-    const { error: insertEduError } = await supabaseClient.from('EducationItem').insert(
-      {
+    const { error: insertEduError } = await supabaseClient
+      .from("EducationItem")
+      .insert({
         cvId: id,
         userId: userId,
         ...edu,
@@ -309,21 +457,30 @@ async function updateCV(supabaseClient, id, cv) {
     if (insertEduError) throw insertEduError;
   }
 
-  const { error: deleteSkillGroupError } = await supabaseClient.from('SkillGroup').delete().eq('cvId', id).eq('userId', userId);
+  const { error: deleteSkillGroupError } = await supabaseClient
+    .from("SkillGroup")
+    .delete()
+    .eq("cvId", id)
+    .eq("userId", userId);
   if (deleteSkillGroupError) throw deleteSkillGroupError;
   for (const skillgroup of parsedskillGroups) {
-    const { data: skillgroupinserted,error: insertSkillGroupError } = await supabaseClient.from('SkillGroup').insert(
-      {
-        cvId: id,
-        userId: userId,
-        name: skillgroup.name,
-        order: skillgroup.order,
-      }).select().single();
+    const { data: skillgroupinserted, error: insertSkillGroupError } =
+      await supabaseClient
+        .from("SkillGroup")
+        .insert({
+          cvId: id,
+          userId: userId,
+          name: skillgroup.name,
+          order: skillgroup.order,
+        })
+        .select()
+        .single();
     if (insertSkillGroupError) throw insertSkillGroupError;
-    if(skillgroup.skills){
+    if (skillgroup.skills) {
       for (const skill of skillgroup.skills) {
-        const { error: insertSkillError } = await supabaseClient.from('Skill').insert(
-          {
+        const { error: insertSkillError } = await supabaseClient
+          .from("Skill")
+          .insert({
             skillgroupId: skillgroupinserted.id,
             userId: userId,
             name: skill.name,
@@ -334,160 +491,188 @@ async function updateCV(supabaseClient, id, cv) {
     }
   }
 
-  return new Response(JSON.stringify({
-    id,
-    ...parsedCV,
-    layoutConfigs: {...parsedLayoutConfigs},
-    personalInformation: {...parsedPersonalInformation},
-    experience: parsedExperiences,
-    education: parsedEducation,
-    skillGroups: parsedskillGroups
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      id,
+      ...parsedCV,
+      layoutConfigs: { ...parsedLayoutConfigs },
+      personalInformation: { ...parsedPersonalInformation },
+      experience: parsedExperiences,
+      education: parsedEducation,
+      skillGroups: parsedskillGroups,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 
 async function updateCV2(supabaseClient, id, cv) {
   let parsedCV = validateCV2(cv);
- 
-  //Update 
-  const { error: cvupdateError } = await supabaseClient.from('cv').update({
-    data: parsedCV,
-    updatedAt: new Date().toISOString()
-  }).eq('id', id);
+
+  //Update
+  const { error: cvupdateError } = await supabaseClient
+    .from("cv")
+    .update({
+      data: parsedCV,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq("id", id);
   if (cvupdateError) throw cvupdateError;
-  
+
   return new Response(JSON.stringify(parsedCV), {
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    status: 200
+    status: 200,
   });
 }
 
 async function duplicateCV2(supabaseClient, id) {
   const userId = await getUserId(supabaseClient);
   const cv = await getCVraw2(supabaseClient, id);
-  //Update 
-  const { data: cvData, error: cvinsertError } = await supabaseClient.from('cv').insert({
-    userId: userId,
-    visibility: 'draft',
-    name: cv.name + ' COPY', 
-    updatedAt: new Date().toISOString(),
-    data: cv.data
-  }).select().single();
+  //Update
+  const { data: cvData, error: cvinsertError } = await supabaseClient
+    .from("cv")
+    .insert({
+      userId: userId,
+      visibility: "draft",
+      name: cv.name + " COPY",
+      updatedAt: new Date().toISOString(),
+      data: cv.data,
+    })
+    .select()
+    .single();
   if (cvinsertError) throw cvinsertError;
 
-  return new Response(JSON.stringify({
-    id: cvData.id,
-    name: cvData.name,
-    createdAt: cvData.createdAt
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      id: cvData.id,
+      name: cvData.name,
+      createdAt: cvData.createdAt,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 
 async function duplicateCV(supabaseClient, id) {
   const userId = await getUserId(supabaseClient);
   const cv = await getCVraw(supabaseClient, id);
-  //Update 
-  const { data: cvData, error: cvinsertError } = await supabaseClient.from('cv').insert({
-    userId: userId,
-    visibility: 'draft',
-    name: cv.name + ' COPY', 
-    updatedAt: new Date().toISOString()
-  }).select().single();
+  //Update
+  const { data: cvData, error: cvinsertError } = await supabaseClient
+    .from("cv")
+    .insert({
+      userId: userId,
+      visibility: "draft",
+      name: cv.name + " COPY",
+      updatedAt: new Date().toISOString(),
+    })
+    .select()
+    .single();
   if (cvinsertError) throw cvinsertError;
 
-  if(cv.layoutConfigs){
-    const { error: layoutconfigsError } = await supabaseClient.from('layoutConfigs').insert({
-      cvId: cvData.id,
-      templateId: cv.layoutConfigs.templateId,
-      colorId: cv.layoutConfigs.colorId,
-      fontSize: cv.layoutConfigs.fontSize,
-      userId: userId
-    });
+  if (cv.layoutConfigs) {
+    const { error: layoutconfigsError } = await supabaseClient
+      .from("layoutConfigs")
+      .insert({
+        cvId: cvData.id,
+        templateId: cv.layoutConfigs.templateId,
+        colorId: cv.layoutConfigs.colorId,
+        fontSize: cv.layoutConfigs.fontSize,
+        userId: userId,
+      });
     if (layoutconfigsError) throw layoutconfigsError;
   }
-  
-  if(cv.personalInformation){
-    const { error: personalInformationError } = await supabaseClient.from('personalInformation').insert({
-      cvId: cvData.id,
-      userId: userId,
-      name: cv.personalInformation.name,
-      surname: cv.personalInformation.surname,
-      profileUrl: cv.personalInformation.profileUrl,
-      birthdate: cv.personalInformation.birthdate,
-      email: cv.personalInformation.email,
-      phone: cv.personalInformation.phone,
-      location: cv.personalInformation.location,
-      linkedin: cv.personalInformation.linkedin,
-      xing: cv.personalInformation.xing,
-      professionalTitle: cv.personalInformation.professionalTitle,
-      summary: cv.personalInformation.summary
-    });
+
+  if (cv.personalInformation) {
+    const { error: personalInformationError } = await supabaseClient
+      .from("personalInformation")
+      .insert({
+        cvId: cvData.id,
+        userId: userId,
+        name: cv.personalInformation.name,
+        surname: cv.personalInformation.surname,
+        profileUrl: cv.personalInformation.profileUrl,
+        birthdate: cv.personalInformation.birthdate,
+        email: cv.personalInformation.email,
+        phone: cv.personalInformation.phone,
+        location: cv.personalInformation.location,
+        linkedin: cv.personalInformation.linkedin,
+        xing: cv.personalInformation.xing,
+        professionalTitle: cv.personalInformation.professionalTitle,
+        summary: cv.personalInformation.summary,
+      });
     if (personalInformationError) throw personalInformationError;
   }
 
-  if(Array.isArray(cv.experience)){
+  if (Array.isArray(cv.experience)) {
     for (const exp of cv.experience) {
-      const { error: insertExpError } = await supabaseClient.from('ExperienceItem').insert(
-      {
-        cvId: cvData.id,
-        userId: userId,
-        role: exp.role,
-        company: exp.company,
-        startDate: exp.startDate,
-        currentlyWorkingHere: exp.currentlyWorkingHere,
-        endDate: exp.endDate,
-        location: exp.location,
-        description: exp.description
-      });
+      const { error: insertExpError } = await supabaseClient
+        .from("ExperienceItem")
+        .insert({
+          cvId: cvData.id,
+          userId: userId,
+          role: exp.role,
+          company: exp.company,
+          startDate: exp.startDate,
+          currentlyWorkingHere: exp.currentlyWorkingHere,
+          endDate: exp.endDate,
+          location: exp.location,
+          description: exp.description,
+        });
       if (insertExpError) throw insertExpError;
     }
   }
-  
-  if(Array.isArray(cv.education)){
+
+  if (Array.isArray(cv.education)) {
     for (const edu of cv.education) {
-      const { error: insertEduError } = await supabaseClient.from('EducationItem').insert(
-      {
-        cvId: cvData.id,
-        userId: userId,
-        degree: edu.degree,
-        institution: edu.institution,
-        startDate: edu.startDate,
-        currentlyStudyingHere: edu.currentlyStudyingHere,
-        endDate: edu.endDate,
-        location: edu.location,
-        description: edu.description
-      });
+      const { error: insertEduError } = await supabaseClient
+        .from("EducationItem")
+        .insert({
+          cvId: cvData.id,
+          userId: userId,
+          degree: edu.degree,
+          institution: edu.institution,
+          startDate: edu.startDate,
+          currentlyStudyingHere: edu.currentlyStudyingHere,
+          endDate: edu.endDate,
+          location: edu.location,
+          description: edu.description,
+        });
       if (insertEduError) throw insertEduError;
     }
   }
-  
-  if(Array.isArray(cv.skillGroups)){
+
+  if (Array.isArray(cv.skillGroups)) {
     for (const skillgroup of cv.skillGroups) {
-      const { data: skillgroupinserted,error: insertSkillGroupError } = await supabaseClient.from('SkillGroup').insert(
-        {
-          cvId: cvData.id,
-          userId: userId,
-          name: skillgroup.name,
-          order: skillgroup.order,
-        }).select().single();
+      const { data: skillgroupinserted, error: insertSkillGroupError } =
+        await supabaseClient
+          .from("SkillGroup")
+          .insert({
+            cvId: cvData.id,
+            userId: userId,
+            name: skillgroup.name,
+            order: skillgroup.order,
+          })
+          .select()
+          .single();
       if (insertSkillGroupError) throw insertSkillGroupError;
-      if(skillgroup.skills){
+      if (skillgroup.skills) {
         for (const skill of skillgroup.skills) {
-          const { error: insertSkillError } = await supabaseClient.from('Skill').insert(
-            {
+          const { error: insertSkillError } = await supabaseClient
+            .from("Skill")
+            .insert({
               skillgroupId: skillgroupinserted.id,
               userId: userId,
               name: skill.name,
@@ -499,43 +684,51 @@ async function duplicateCV(supabaseClient, id) {
     }
   }
 
-  return new Response(JSON.stringify({
-    id: cvData.id,
-    name: cvData.name,
-    createdAt: cvData.createdAt
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      id: cvData.id,
+      name: cvData.name,
+      createdAt: cvData.createdAt,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 
 async function debug(data) {
-  return new Response(JSON.stringify({
-    data
-  }), {
-    headers: {
-      ...corsHeaders,
-      'Content-Type': 'application/json'
-    },
-    status: 200
-  });
+  return new Response(
+    JSON.stringify({
+      data,
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+      },
+      status: 200,
+    }
+  );
 }
 //util
 async function createCV(supabaseClient, cv) {
-  console.log('creating cv', cv);
+  console.log("creating cv", cv);
   const userId = await getUserId(supabaseClient);
   let insertData;
   insertData = {
-    userId: userId
+    userId: userId,
   };
   if (cv.name !== null) {
-    const schema = z.object({
-      name: z.string()
-    }).transform(({ name })=>({
-        name: encode(name)
+    const schema = z
+      .object({
+        name: z.string(),
+      })
+      .transform(({ name }) => ({
+        name: encode(name),
       }));
     let parsed;
     try {
@@ -547,17 +740,21 @@ async function createCV(supabaseClient, cv) {
     }
     insertData = {
       userId: userId,
-      name: parsed.name
+      name: parsed.name,
     };
   }
-  const { data, error } = await supabaseClient.from('cv').insert(insertData).select().single();
+  const { data, error } = await supabaseClient
+    .from("cv")
+    .insert(insertData)
+    .select()
+    .single();
   if (error) throw error;
   return new Response(JSON.stringify(data), {
     headers: {
       ...corsHeaders,
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    status: 200
+    status: 200,
   });
 }
 async function getUserId(supabaseClient) {
@@ -565,137 +762,147 @@ async function getUserId(supabaseClient) {
   if (error) throw error;
   return data.user.id;
 }
-Deno.serve(async (req)=>{
+Deno.serve(async (req) => {
   const { url, method } = req;
   // This is needed if you're planning to invoke your function from a browser.
-  if (method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: corsHeaders
+  if (method === "OPTIONS") {
+    return new Response("ok", {
+      headers: corsHeaders,
     });
   }
   try {
     // Create a Supabase client with the Auth context of the logged in user.
-    const supabaseClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
-      global: {
-        headers: {
-          Authorization: req.headers.get('Authorization')
-        }
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: {
+          headers: {
+            Authorization: req.headers.get("Authorization"),
+          },
+        },
       }
-    });
+    );
     // For more details on URLPattern, check https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
     const instrumentPattern = new URLPattern({
-      pathname: '/restful-api/:action/:id?'
+      pathname: "/restful-api/:action/:id?",
     });
     const matchingPath = instrumentPattern.exec(url);
     const id = matchingPath ? matchingPath.pathname.groups.id : null;
     const action = matchingPath ? matchingPath.pathname.groups.action : null;
-    if (action === 'profile') {
+    if (action === "profile") {
       let profile = null;
-      if (method === 'POST' || method === 'PUT') {
+      if (method === "POST" || method === "PUT") {
         const body = await req.json();
         profile = body.profile;
       }
       // call relevant method based on method and id
-      switch(true){
-        case id && method === 'GET':
+      switch (true) {
+        case id && method === "GET":
           return getProfile(supabaseClient, id);
-        case id && method === 'PUT':
+        case id && method === "PUT":
           if (profile === null) return;
           return updateProfile(supabaseClient, id, profile);
-        case id && method === 'DELETE':
+        case id && method === "DELETE":
           return deleteProfile(supabaseClient, id);
         default:
           return;
       }
-    } else if (action === 'cv') {
+    } else if (action === "cv") {
       let cv = null;
-      if (method === 'POST' || method === 'PUT') {
+      if (method === "POST" || method === "PUT") {
         const body = await req.json();
         cv = body;
       }
       // call relevant method based on method and id
-      switch(true){
-        case id && method === 'GET':
+      switch (true) {
+        case id && method === "GET":
           return getCV(supabaseClient, id);
-        case id && method === 'PUT':
+        case id && method === "PUT":
           if (cv === null) return;
           return updateCV(supabaseClient, id, cv);
-        case id && method === 'DELETE':
+        case id && method === "DELETE":
           return deleteCV(supabaseClient, id);
-        case id && method === 'POST':
+        case id && method === "POST":
           return duplicateCV(supabaseClient, id);
-        case method === 'POST':
+        case method === "POST":
           if (cv === null) return;
           return createCV(supabaseClient, cv);
-        case method === 'GET':
+        case method === "GET":
           return getAllCVs(supabaseClient);
         default:
           return getAllCVs(supabaseClient);
       }
-    } else if (action === 'cv2') {
+    } else if (action === "cv2") {
       let cv = null;
-      if (method === 'POST' || method === 'PUT') {
+      if (method === "POST" || method === "PUT") {
         const body = await req.json();
         cv = body;
       }
       // call relevant method based on method and id
-      switch(true){
-        case id && method === 'GET':
+      switch (true) {
+        case id && method === "GET":
           return getCV2(supabaseClient, id);
-        case id && method === 'PUT':
+        case id && method === "PUT":
           if (cv === null) return;
           return updateCV2(supabaseClient, id, cv);
-        case id && method === 'DELETE':
+        case id && method === "DELETE":
           return deleteCV(supabaseClient, id);
-        case id && method === 'POST':
+        case id && method === "POST":
           return duplicateCV2(supabaseClient, id);
-        case method === 'POST':
+        case method === "POST":
           if (cv === null) return;
           return createCV(supabaseClient, cv);
-        case method === 'GET':
+        case method === "GET":
           return getAllCVs(supabaseClient);
         default:
           return getAllCVs(supabaseClient);
       }
-    } else if (action === 'view') {
+    } else if (action === "view") {
       let viewData = null;
-      if (method === 'POST') {
+      if (method === "POST") {
         const body = await req.json();
         viewData = body;
       }
       // call relevant method based on method and id
-      switch(true){
-        case id && method === 'GET':
+      switch (true) {
+        case id && method === "GET":
           return getView(supabaseClient, id);
-        case method === 'POST':
+        case method === "POST":
           return getViewProtected(supabaseClient, viewData, req);
         default:
           return;
       }
     } else {
-      console.log('no action provided');
+      console.log("no action provided");
     }
   } catch (error) {
     console.error(error);
-    if(error instanceof z.ZodError){
-      return new Response(JSON.stringify({
-        error: error.issues
-      }), {
-        headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-        },
-        status: 400
-      });
+    if (error instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({
+          error: error.issues,
+        }),
+        {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+          status: 400,
+        }
+      );
     }
-    return new Response(JSON.stringify({
-      error: error.message
-    }), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      },
-      status: 400
-    });
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 400,
+      }
+    );
   }
 });

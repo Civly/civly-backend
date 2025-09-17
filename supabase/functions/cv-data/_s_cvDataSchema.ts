@@ -1,9 +1,9 @@
 import z from "zod";
-import { educationItemSchema } from "./educationSchema";
-import { experienceItemSchema } from "./experienceSchema";
-import { layoutConfigsSchema } from "./layoutSchema";
-import { personalInformationSchema } from "./personalInformationSchema";
-import { skillGroupSchema } from "./skillsSchema";
+import { educationItemSchema } from "./_s_educationSchema";
+import { experienceItemSchema } from "./_s_experienceSchema";
+import { layoutConfigsSchema } from "./_s_layoutSchema";
+import { personalInformationSchema } from "./_s_personalInformationSchema";
+import { skillGroupSchema } from "./_s_skillsSchema";
 
 export const cvDataSchema = z.object({
   id: z.uuid().optional(),
