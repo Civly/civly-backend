@@ -1,6 +1,5 @@
 import * as z from "npm:zod@latest";
 
-
 export const skillGroupItemSchema = z
   .object({
     order: z
@@ -125,7 +124,7 @@ export const educationItemSchema = z
       message: "End date cannot be before start date",
       path: ["endDate"],
     }
-);
+  );
 export const experienceItemSchema = z
   .object({
     role: z.string().min(1, { message: "Role is required" }),
@@ -162,7 +161,7 @@ export const experienceItemSchema = z
       path: ["endDate"],
     }
   );
-  export const layoutConfigsSchema = z
+export const layoutConfigsSchema = z
   .object({
     templateId: z.number().int().nonnegative(),
     colorId: z.number().int().nonnegative(),
