@@ -13,7 +13,6 @@ export async function duplicateCV(supabaseClient, id) {
       visibility: "draft",
       name: cv.name + " COPY",
       updatedAt: new Date().toISOString(),
-      data: cv.data,
       layoutConfigs: cv.layoutConfigs,
       personalInformation: cv.personalInformation,
       experience: cv.experience,
