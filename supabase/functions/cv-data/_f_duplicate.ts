@@ -5,6 +5,21 @@ import { corsHeaders } from "./_h_corsHeaders.ts";
 export async function duplicateCV(supabaseClient, id) {
   const userId = await getUserId(supabaseClient);
   const cv = await getCVraw(supabaseClient, id);
+  if(!cv){
+    return new Response(
+      JSON.stringify({
+        error: 'cv not found',
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+        status: 404,
+      }
+    );
+  }
+
   //Update
   const { data: cvData, error: cvinsertError } = await supabaseClient
     .from("cv")
