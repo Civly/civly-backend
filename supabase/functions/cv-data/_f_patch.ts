@@ -1,8 +1,10 @@
+import { getUserId } from "./_f_getUserId.ts";
 import { validateCV } from "./_f_validate.ts";
 import { corsHeaders } from "./_h_corsHeaders.ts";
 import { CvData } from "./_s_cvDataSchema.ts";
 
 export async function patchCV(supabaseClient, id: string, cv: CvData) {
+  const userId = await getUserId(supabaseClient);
   let parsedCV = validateCV(cv);
 
   //Update
@@ -17,7 +19,7 @@ export async function patchCV(supabaseClient, id: string, cv: CvData) {
       name: parsedCV.name,
       visibility: parsedCV.visibility,
     })
-    .eq("id", id);
+    .eq("id", id).eq('userId', userId);
   if (cvupdateError) throw cvupdateError;
 
   return new Response(JSON.stringify(parsedCV), {

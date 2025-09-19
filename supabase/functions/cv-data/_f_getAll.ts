@@ -1,9 +1,11 @@
+import { getUserId } from "./_f_getUserId.ts";
 import { corsHeaders } from "./_h_corsHeaders.ts";
 
 export async function getAllCVs(supabaseClient) {
+  const userId = await getUserId(supabaseClient);
   const { data, error } = await supabaseClient
     .from("cv")
-    .select("id, createdAt, updatedAt, userId, visibility, name")
+    .select("id, createdAt, updatedAt, userId, visibility, name").eq('userId',userId)
     .order("createdAt", {
       ascending: false,
     });
