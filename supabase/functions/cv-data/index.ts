@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const id = matchingPath ? matchingPath.pathname.groups.id : null;
 
     let cv = null;
-    if (method === "POST" || method === "PUT") {
+    if (method === "POST" || method === "PUT" || method === "PATCH") {
       const body = await req.json();
       cv = body;
     }
@@ -58,8 +58,7 @@ Deno.serve(async (req) => {
       case id && method === "POST":
         return duplicateCV(supabaseClient, id);
       case method === "POST":
-        if (cv === null) return;
-        return createCV(supabaseClient, cv);
+        return createCV(supabaseClient);
       case method === "GET":
         return getAllCVs(supabaseClient);
       default:
