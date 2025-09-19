@@ -1,4 +1,4 @@
-import { getUserId } from "./_f_getUserId";
+import { getUserId } from "./_f_getUserId.ts";
 
 export async function getCVraw(supabaseClient, id: string) {
   const userId = await getUserId(supabaseClient);
