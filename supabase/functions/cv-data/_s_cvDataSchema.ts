@@ -8,7 +8,7 @@ import { skillGroupSchema } from "./_s_skillsSchema.ts";
 
 export const cvDataSchema = z.object({
   id: z.uuid().optional(),
-  name: z.string().min(1).transform((val) => {
+  name: z.string().min(1).optional().transform((val) => {
               return val ? encode(val) : undefined;
           }),
   userId: z.string().optional(),
