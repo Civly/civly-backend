@@ -32,6 +32,7 @@ export async function duplicateCV(supabaseClient, id) {
       personalInformation: cv.personalInformation,
       experience: cv.experience,
       education: cv.education,
+      skillGroups: cv.skillGroups
     })
     .select()
     .single();
