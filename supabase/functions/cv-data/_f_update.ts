@@ -18,6 +18,7 @@ export async function updateCV(supabaseClient, id: string, cv: CvData) {
       personalInformation: parsedCV.personalInformation,
       experience: parsedCV.experience,
       education: parsedCV.education,
+      skillGroups: parsedCV.skillGroups,
       updatedAt: new Date().toISOString(),
     }:
     {
@@ -27,6 +28,7 @@ export async function updateCV(supabaseClient, id: string, cv: CvData) {
       personalInformation: parsedCV.personalInformation,
       experience: parsedCV.experience,
       education: parsedCV.education,
+      skillGroups: parsedCV.skillGroups,
       updatedAt: new Date().toISOString(),
     })
     .eq("id", id).eq('userId',userId);
