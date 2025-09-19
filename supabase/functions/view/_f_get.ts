@@ -10,7 +10,7 @@ export async function getView(supabaseClient, id: string) {
   if (cvDataError) throw cvDataError;
   if (cvData?.visibility == "public" && cvData?.password === null) {
     return await getCV(supabaseClient, id);
-  } else if (cvData?.visibility == "public" && cvData?.password !== null) {
+  } else if (cvData?.visibility == "private" && cvData?.password !== null) {
     return new Response(
       JSON.stringify({
         error: "CV is password protected",

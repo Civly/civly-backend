@@ -7,6 +7,7 @@ import { deleteCV } from "./_f_delete.ts";
 import { duplicateCV } from "./_f_duplicate.ts";
 import { createCV } from "./_f_create.ts";
 import { getAllCVs } from "./_f_getAll.ts";
+import { patchCV } from "./_f_patch.ts";
 
 
 Deno.serve(async (req) => {
@@ -49,6 +50,9 @@ Deno.serve(async (req) => {
       case id && method === "PUT":
         if (cv === null) return;
         return updateCV(supabaseClient, id, cv);
+      case id && method === "PATCH":
+        if (cv === null) return;
+        return patchCV(supabaseClient, id, cv);
       case id && method === "DELETE":
         return deleteCV(supabaseClient, id);
       case id && method === "POST":

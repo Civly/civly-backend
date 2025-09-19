@@ -44,7 +44,7 @@ export async function getViewProtected(serviceRole, supabaseClient, viewData: CV
   if (cvDataError) throw cvDataError;
   if (
     cvData.password !== null &&
-    cvData.visibility == "public" &&
+    cvData.visibility == "private" &&
     viewData?.password == cvData.password
   ) {
     //Password was correct reset retries
