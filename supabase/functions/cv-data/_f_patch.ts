@@ -18,6 +18,7 @@ export async function patchCV(supabaseClient, id: string, cv: CvData) {
     {
       name: parsedCV.name,
       visibility: parsedCV.visibility,
+      password: null
     })
     .eq("id", id).eq('userId', userId);
   if (cvupdateError) throw cvupdateError;
