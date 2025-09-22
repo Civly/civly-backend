@@ -55,7 +55,18 @@ Deno.serve(async (req) => {
         if (profile === null) return;
         return updateProfile(supabaseClient, id, profile);
     case id && method === "DELETE":
-        return deleteProfile(supabaseClient, id);
+      const serviceRole = createClient(
+          Deno.env.get("SUPABASE_URL"),
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+          {
+          auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+              detectSessionInUrl: false,
+          },
+          }
+      );
+        return deleteProfile(serviceRole, supabaseClient, id);
     default:
         return;
     }

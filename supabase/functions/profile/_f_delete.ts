@@ -1,8 +1,14 @@
+import { getUserId } from "./_f_getUserId.ts";
 import { corsHeaders } from "./_h_corsHeaders.ts";
 
-export async function deleteProfile(supabaseClient, id: string) {
-  const { error } = await supabaseClient.from("profiles").delete().eq("id", id);
-  if (error) throw error;
+export async function deleteProfile(serviceRole, supabaseClient, id: string) {
+  const userId = await getUserId(supabaseClient);
+  if(id === userId){
+    const { error } = await supabaseClient.from("profiles").delete().eq("id", userId);
+    if (error) throw error;
+    const { error: adminError } = await serviceRole.auth.admin.deleteUser(userId);
+    if (adminError) throw adminError;
+  }
   return new Response(JSON.stringify({}), {
     headers: {
       ...corsHeaders,
