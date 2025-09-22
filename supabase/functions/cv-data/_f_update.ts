@@ -12,7 +12,6 @@ export async function updateCV(supabaseClient, id: string, cv: CvData) {
     .from("cv")
     .update(parsedCV.password ?{
       name: parsedCV.name,
-      visibility: parsedCV.visibility,
       password: parsedCV.password,
       layoutConfigs: parsedCV.layoutConfigs,
       personalInformation: parsedCV.personalInformation,
@@ -23,7 +22,6 @@ export async function updateCV(supabaseClient, id: string, cv: CvData) {
     }:
     {
       name: parsedCV.name,
-      visibility: parsedCV.visibility,
       layoutConfigs: parsedCV.layoutConfigs,
       personalInformation: parsedCV.personalInformation,
       experience: parsedCV.experience,
