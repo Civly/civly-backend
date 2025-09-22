@@ -14,7 +14,7 @@ export async function createCV(supabaseClient) {
       templateId: 0,
       colorId: 0,
       fontId: 0,
-      fontSizeId: 0,
+      fontSizeId: 11,
     },
     personalInformation: {
       name: "",
